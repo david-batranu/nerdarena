@@ -58,5 +58,7 @@
   - *Strategy:* Bypassing standard `qsort` is crucial for performance when the average query size $k$ is small. For small array subsets (e.g. $k \le 3$), use manual inlined branchless comparisons. For $k \le 32$, use inlined Insertion Sort to avoid function call stack frames. Use `qsort` ONLY as an $O(k \log k)$ safety fallback for $k > 32$.
 - **Direct Memory I/O Buffering**: 
   - *Strategy:* Downsize standard I/O streams to a highly optimal $128$ KB `fread`/`fwrite` chunk system. A $128$ KB buffer retains maximum hardware page-caching throughput while saving $1.8$ MB of RAM compared to 1MB buffers.
+- **Recursion Stack-Frame Elimination (The Silent Memory Bloat)**:
+  - *Strategy:* Deep recursive algorithms on trees (e.g. DFS) allocate a stack frame for every node (typically $\approx 48$ bytes). At $N \ge 200,000$, this translates to a massive, resident $\approx 9.6$ MB of memory overhead. Eliminate this completely by running an iterative BFS queue to get topological order, then traversing in reverse topological order (bottom-up) for sizes/properties. For tree decompositions, use tail-call loop optimization to bound recursion stack depth to strictly $O(\log N)$ or $O(1)$. Free all temporary BFS arrays *before* running queries to minimize the active footprint!
 
 ### Dynamic Constraints
