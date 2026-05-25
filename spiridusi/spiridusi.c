@@ -1,15 +1,15 @@
 #include <stdio.h>
 
-#define INPUT_BUF_SIZE (16 * 1024 * 1024)
+#define INPUT_BUF_SIZE 4194304
 char input_buf[INPUT_BUF_SIZE];
 char *ptr = input_buf;
 
 static inline int read_int(void) {
-    while (*ptr != '\0' && (*ptr < '0' || *ptr > '9')) {
+    while (*ptr < '0') {
         ptr++;
     }
     int res = 0;
-    while (*ptr >= '0' && *ptr <= '9') {
+    while (*ptr >= '0') {
         res = res * 10 + (*ptr - '0');
         ptr++;
     }
@@ -17,7 +17,7 @@ static inline int read_int(void) {
 }
 
 static inline void read_string(char *s, int n) {
-    while (*ptr != '\0' && *ptr != '0' && *ptr != '1') {
+    while (*ptr < '0') {
         ptr++;
     }
     for (int i = 0; i < n; ++i) {
