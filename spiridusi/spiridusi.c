@@ -155,10 +155,8 @@ Node query(int node, int start, int end, int l, int r) {
     Node ql = query(left, start, mid, l, r);
     Node qr = query(right, mid + 1, end, l, r);
     
-    // Branchless max_l = max(start, l)
-    int max_l = start ^ ((start ^ l) & -(start < l));
-    // Branchless min_r = min(end, r)
-    int min_r = r ^ ((r ^ end) & -(r < end));
+    int max_l = l > start ? l : start;
+    int min_r = r < end ? r : end;
     
     return merge(ql, qr, mid - max_l + 1, min_r - mid);
 }
