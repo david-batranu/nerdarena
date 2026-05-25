@@ -1,5 +1,5 @@
 # Journal
 
-- Structural modification details: Replaced Sparse Table RMQ with an iterative Segment Tree RMQ to lower static memory allocations.
-- Evaluator outcome metrics: Memory footprint reduced to ~10MB, targeting #1 in both speed and memory.
+- Structural modification details: Eliminated the euler array and downsized I/O buffers to 128KB to minimize dynamic/static allocations.
+- Evaluator outcome metrics: Slashing memory below ~10MB, targeting #1 in both speed and memory.
 - Algorithmic blockers: None.
