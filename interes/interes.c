@@ -21,46 +21,87 @@ int depth[MAXN];
 int tin[MAXN];
 int timer = 0;
 int up[MAXN][LOGN];
+int max_depth = 0;
+int max_log = 0;
 
-// Fast I/O
-#define BUFFER_SIZE 65536
-char buffer[BUFFER_SIZE];
-int buffer_ptr = 0;
-int buffer_len = 0;
-
-static inline char read_char(void) {
-    if (buffer_ptr >= buffer_len) {
-        buffer_len = fread(buffer, 1, BUFFER_SIZE, stdin);
-        buffer_ptr = 0;
-        if (buffer_len == 0) {
-            return EOF;
-        }
-    }
-    return buffer[buffer_ptr++];
-}
+// Fast I/O buffers
+static char io_buf[1 << 20];
+static char *buf_ptr = io_buf;
+static char *buf_end = io_buf;
 
 static inline int read_int(void) {
-    char c = read_char();
-    while (c <= ' ' && c != EOF) {
-        c = read_char();
+    while (buf_ptr >= buf_end) {
+        int len = fread(io_buf, 1, sizeof(io_buf), stdin);
+        if (len <= 0) return 0;
+        buf_ptr = io_buf;
+        buf_end = io_buf + len;
     }
-    if (c == EOF) return 0;
+    while (*buf_ptr <= ' ') {
+        buf_ptr++;
+        while (buf_ptr >= buf_end) {
+            int len = fread(io_buf, 1, sizeof(io_buf), stdin);
+            if (len <= 0) return 0;
+            buf_ptr = io_buf;
+            buf_end = io_buf + len;
+        }
+    }
     int res = 0;
-    while (c >= '0' && c <= '9') {
-        res = res * 10 + (c - '0');
-        c = read_char();
+    while (buf_ptr < buf_end && *buf_ptr > ' ') {
+        res = res * 10 + (*buf_ptr - '0');
+        buf_ptr++;
+        if (buf_ptr >= buf_end) {
+            int len = fread(io_buf, 1, sizeof(io_buf), stdin);
+            if (len > 0) {
+                buf_ptr = io_buf;
+                buf_end = io_buf + len;
+            }
+        }
     }
     return res;
 }
 
-// DFS to compute depths, entry times, and initial ancestors
+// Fast Output
+static char out_buf[1 << 20];
+static char *out_ptr = out_buf;
+
+static inline void write_char(char c) {
+    if (out_ptr >= out_buf + sizeof(out_buf)) {
+        fwrite(out_buf, 1, out_ptr - out_buf, stdout);
+        out_ptr = out_buf;
+    }
+    *out_ptr++ = c;
+}
+
+static inline void write_int(long long n) {
+    if (n == 0) {
+        write_char('0');
+        return;
+    }
+    char temp[25];
+    int temp_ptr = 0;
+    while (n > 0) {
+        temp[temp_ptr++] = (n % 10) + '0';
+        n /= 10;
+    }
+    while (temp_ptr > 0) {
+        write_char(temp[--temp_ptr]);
+    }
+}
+
+static inline void flush_output(void) {
+    if (out_ptr > out_buf) {
+        fwrite(out_buf, 1, out_ptr - out_buf, stdout);
+        out_ptr = out_buf;
+    }
+}
+
+// DFS to compute depths and entry times
 void dfs(int u, int p) {
     tin[u] = ++timer;
     up[u][0] = p;
-    for (int i = 1; i < LOGN; ++i) {
-        up[u][i] = up[up[u][i - 1]][i - 1];
+    if (depth[u] > max_depth) {
+        max_depth = depth[u];
     }
-    
     for (int e = head[u]; e != -1; e = next_edge[e]) {
         int v = to[e];
         if (v != p) {
@@ -71,24 +112,23 @@ void dfs(int u, int p) {
 }
 
 // LCA using binary lifting
-int get_lca(int u, int v) {
+static inline int get_lca(int u, int v) {
     if (depth[u] < depth[v]) {
         int tmp = u;
         u = v;
         v = tmp;
     }
     
-    // Lift u to the same depth as v
     int diff = depth[u] - depth[v];
-    for (int i = 0; i < LOGN; ++i) {
-        if ((diff >> i) & 1) {
-            u = up[u][i];
-        }
+    while (diff) {
+        int i = __builtin_ctz(diff);
+        u = up[u][i];
+        diff &= diff - 1;
     }
     
     if (u == v) return u;
     
-    for (int i = LOGN - 1; i >= 0; --i) {
+    for (int i = max_log; i >= 0; --i) {
         if (up[u][i] != up[v][i]) {
             u = up[u][i];
             v = up[v][i];
@@ -103,30 +143,56 @@ static inline int get_dist(int u, int v) {
     return depth[u] + depth[v] - 2 * depth[get_lca(u, v)];
 }
 
-// Comparison function for sorting query nodes by tin
-int compare_nodes(const void *a, const void *b) {
-    int u = *(const int *)a;
-    int v = *(const int *)b;
-    return tin[u] - tin[v];
+// Custom sort function optimized for small arrays & DFS preorder tin sorting
+static inline void sort_query_nodes(int *arr, int n) {
+    if (n == 2) {
+        if (tin[arr[0]] > tin[arr[1]]) {
+            int tmp = arr[0];
+            arr[0] = arr[1];
+            arr[1] = tmp;
+        }
+        return;
+    }
+    if (n == 3) {
+        if (tin[arr[0]] > tin[arr[1]]) {
+            int tmp = arr[0]; arr[0] = arr[1]; arr[1] = tmp;
+        }
+        if (tin[arr[1]] > tin[arr[2]]) {
+            int tmp = arr[1]; arr[1] = arr[2]; arr[2] = tmp;
+            if (tin[arr[0]] > tin[arr[1]]) {
+                int tmp2 = arr[0]; arr[0] = arr[1]; arr[1] = tmp2;
+            }
+        }
+        return;
+    }
+    // Insertion sort for small sub-arrays
+    for (int i = 1; i < n; ++i) {
+        int key = arr[i];
+        int key_tin = tin[key];
+        int j = i - 1;
+        while (j >= 0 && tin[arr[j]] > key_tin) {
+            arr[j + 1] = arr[j];
+            j--;
+        }
+        arr[j + 1] = key;
+    }
 }
 
 // Temporary storage for queries
 int query_nodes[MAXN];
 
 int main(void) {
-    // Redirect standard files for NerdArena compatibility
     if (freopen("interes.in", "r", stdin) == NULL) {
-        // Fallback to standard input if file doesn't exist
+        // Fallback
     }
     if (freopen("interes.out", "w", stdout) == NULL) {
-        // Fallback to standard output if file cannot be opened
+        // Fallback
     }
 
     int n = read_int();
     int q = read_int();
     if (n == 0) return 0;
 
-    // Initialize adjacency list
     for (int i = 1; i <= n; ++i) {
         head[i] = -1;
     }
@@ -142,6 +208,16 @@ int main(void) {
     depth[1] = 0;
     dfs(1, 1);
 
+    // Compute max log limit
+    max_log = 31 - __builtin_clz(max_depth | 1);
+
+    // Fill binary lifting table iteratively and cache-friendly
+    for (int i = 1; i <= max_log; ++i) {
+        for (int u = 1; u <= n; ++u) {
+            up[u][i] = up[up[u][i - 1]][i - 1];
+        }
+    }
+
     // Process queries
     for (int qi = 0; qi < q; ++qi) {
         int k = read_int();
@@ -149,8 +225,8 @@ int main(void) {
             query_nodes[i] = read_int();
         }
 
-        // Sort nodes by their entry time (tin)
-        qsort(query_nodes, k, sizeof(int), compare_nodes);
+        // Sort nodes by tin using optimized sort
+        sort_query_nodes(query_nodes, k);
 
         long long total_dist = 0;
         for (int i = 0; i < k; ++i) {
@@ -158,8 +234,10 @@ int main(void) {
             total_dist += get_dist(query_nodes[i], query_nodes[next_idx]);
         }
 
-        printf("%lld\n", total_dist / 2);
+        write_int(total_dist / 2);
+        write_char('\n');
     }
 
+    flush_output();
     return 0;
 }
