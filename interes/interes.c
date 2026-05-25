@@ -93,39 +93,19 @@ static inline void flush_output(void) {
     }
 }
 
-// HLD DFS 1: compute depth, parent, heavy child
-int dfs1(int u, int p, int d) {
-    depth[u] = d;
-    parent[u] = p;
-    int size = 1;
-    int max_c_size = 0;
-    heavy[u] = 0;
-    for (int e = head[u]; e != -1; e = next_edge[e]) {
-        int v = to[e];
-        if (v != p) {
-            int c_size = dfs1(v, u, d + 1);
-            size += c_size;
-            if (c_size > max_c_size) {
-                max_c_size = c_size;
-                heavy[u] = v;
+// Bounded-recursion HLD DFS 2 (recursion depth bounded by log N <= 18)
+void dfs2(int u, int h) {
+    while (u) {
+        head_chain[u] = h;
+        tin[u] = ++timer;
+        int hv = heavy[u];
+        for (int e = head[u]; e != -1; e = next_edge[e]) {
+            int v = to[e];
+            if (v != parent[u] && v != hv) {
+                dfs2(v, v); // Recurse on light children (maximum depth log N)
             }
         }
-    }
-    return size;
-}
-
-// HLD DFS 2: decompose into chains and compute preorder tin
-void dfs2(int u, int h) {
-    head_chain[u] = h;
-    tin[u] = ++timer;
-    if (heavy[u]) {
-        dfs2(heavy[u], h);
-    }
-    for (int e = head[u]; e != -1; e = next_edge[e]) {
-        int v = to[e];
-        if (v != parent[u] && v != heavy[u]) {
-            dfs2(v, v);
-        }
+        u = hv; // Tail call optimization for heavy child (0 stack overhead)
     }
 }
 
@@ -207,7 +187,7 @@ int main(void) {
     int q = read_int();
     if (n == 0) return 0;
 
-    // Dynamically allocate all arrays to perfectly fit N, using ~30% less memory than Segment Tree RMQ
+    // Dynamically allocate tree arrays
     head = malloc((n + 1) * sizeof(int));
     depth = malloc((n + 1) * sizeof(int));
     parent = malloc((n + 1) * sizeof(int));
@@ -228,11 +208,48 @@ int main(void) {
         add_edge(v, u);
     }
 
-    // Run DFS 1 to compute tree properties and heavy children
-    dfs1(1, 1, 0);
+    // BFS Top-Down to compute depth and parent (0 stack memory)
+    int *queue = malloc((n + 1) * sizeof(int));
+    int q_head = 0, q_tail = 0;
+    queue[q_tail++] = 1;
+    depth[1] = 0;
+    parent[1] = 1;
 
-    // Run DFS 2 to decompose tree into chains and compute tin
+    while (q_head < q_tail) {
+        int u = queue[q_head++];
+        for (int e = head[u]; e != -1; e = next_edge[e]) {
+            int v = to[e];
+            if (v != parent[u]) {
+                depth[v] = depth[u] + 1;
+                parent[v] = u;
+                queue[q_tail++] = v;
+            }
+        }
+    }
+
+    // Bottom-Up size and heavy child computation (0 stack memory)
+    int *sub_size = calloc(n + 1, sizeof(int));
+    for (int i = 1; i <= n; ++i) {
+        heavy[i] = 0;
+    }
+    for (int i = n - 1; i >= 0; --i) {
+        int u = queue[i];
+        sub_size[u] += 1;
+        int p = parent[u];
+        if (u != 1) {
+            sub_size[p] += sub_size[u];
+            if (heavy[p] == 0 || sub_size[u] > sub_size[heavy[p]]) {
+                heavy[p] = u;
+            }
+        }
+    }
+
+    // Run DFS2 with dynamically bounded recursion (stack depth <= 18)
     dfs2(1, 1);
+
+    // Free temporary memory used for BFS and sizes before query processing
+    free(queue);
+    free(sub_size);
 
     // Process queries
     for (int qi = 0; qi < q; ++qi) {
@@ -263,7 +280,7 @@ int main(void) {
 
     flush_output();
 
-    // Free resources
+    // Free final resources
     free(head);
     free(depth);
     free(parent);
