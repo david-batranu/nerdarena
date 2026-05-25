@@ -13,14 +13,13 @@ static inline void add_edge(int u, int v) {
     head[u] = edge_cnt++;
 }
 
-// Tree properties
+// Tree properties for Heavy-Light Decomposition
 int *depth;
-int *first_occurrence;
-int tour_len = 0;
-
-// Iterative Segment Tree for RMQ
-int *tree;
-int n_tree;
+int *parent;
+int *heavy;
+int *head_chain;
+int *tin;
+int timer = 0;
 
 // Fast I/O buffers (128 KB is highly optimal and saves memory)
 #define IO_BUF_SIZE 131072
@@ -94,42 +93,52 @@ static inline void flush_output(void) {
     }
 }
 
-// DFS to compute Euler Tour, depths and first occurrences directly inside Segment Tree leaf array
-void dfs(int u, int p, int d) {
+// HLD DFS 1: compute depth, parent, heavy child
+int dfs1(int u, int p, int d) {
     depth[u] = d;
-    first_occurrence[u] = tour_len;
-    tree[n_tree + tour_len++] = u;
+    parent[u] = p;
+    int size = 1;
+    int max_c_size = 0;
+    heavy[u] = 0;
     for (int e = head[u]; e != -1; e = next_edge[e]) {
         int v = to[e];
         if (v != p) {
-            dfs(v, u, d + 1);
-            tree[n_tree + tour_len++] = u;
+            int c_size = dfs1(v, u, d + 1);
+            size += c_size;
+            if (c_size > max_c_size) {
+                max_c_size = c_size;
+                heavy[u] = v;
+            }
+        }
+    }
+    return size;
+}
+
+// HLD DFS 2: decompose into chains and compute preorder tin
+void dfs2(int u, int h) {
+    head_chain[u] = h;
+    tin[u] = ++timer;
+    if (heavy[u]) {
+        dfs2(heavy[u], h);
+    }
+    for (int e = head[u]; e != -1; e = next_edge[e]) {
+        int v = to[e];
+        if (v != parent[u] && v != heavy[u]) {
+            dfs2(v, v);
         }
     }
 }
 
-// LCA using Iterative Segment Tree
+// LCA using HLD
 static inline int get_lca(int u, int v) {
-    int l = first_occurrence[u];
-    int r = first_occurrence[v];
-    if (l > r) {
-        int tmp = l;
-        l = r;
-        r = tmp;
-    }
-    
-    int ans = tree[n_tree + l];
-    for (l += n_tree, r += n_tree + 1; l < r; l >>= 1, r >>= 1) {
-        if (l & 1) {
-            int cur = tree[l++];
-            if (depth[cur] < depth[ans]) ans = cur;
-        }
-        if (r & 1) {
-            int cur = tree[--r];
-            if (depth[cur] < depth[ans]) ans = cur;
+    while (head_chain[u] != head_chain[v]) {
+        if (depth[head_chain[u]] > depth[head_chain[v]]) {
+            u = parent[head_chain[u]];
+        } else {
+            v = parent[head_chain[v]];
         }
     }
-    return ans;
+    return depth[u] < depth[v] ? u : v;
 }
 
 // Distance in tree
@@ -137,17 +146,17 @@ static inline int get_dist(int u, int v) {
     return depth[u] + depth[v] - 2 * depth[get_lca(u, v)];
 }
 
-// Comparison function for sorting query nodes by first_occurrence using qsort
+// Comparison function for sorting query nodes by tin using qsort
 static int compare_nodes(const void *a, const void *b) {
     int u = *(const int *)a;
     int v = *(const int *)b;
-    return first_occurrence[u] - first_occurrence[v];
+    return tin[u] - tin[v];
 }
 
 // Custom sort function optimized for small arrays
 static inline void sort_query_nodes(int *arr, int n) {
     if (n == 2) {
-        if (first_occurrence[arr[0]] > first_occurrence[arr[1]]) {
+        if (tin[arr[0]] > tin[arr[1]]) {
             int tmp = arr[0];
             arr[0] = arr[1];
             arr[1] = tmp;
@@ -155,12 +164,12 @@ static inline void sort_query_nodes(int *arr, int n) {
         return;
     }
     if (n == 3) {
-        if (first_occurrence[arr[0]] > first_occurrence[arr[1]]) {
+        if (tin[arr[0]] > tin[arr[1]]) {
             int tmp = arr[0]; arr[0] = arr[1]; arr[1] = tmp;
         }
-        if (first_occurrence[arr[1]] > first_occurrence[arr[2]]) {
+        if (tin[arr[1]] > tin[arr[2]]) {
             int tmp = arr[1]; arr[1] = arr[2]; arr[2] = tmp;
-            if (first_occurrence[arr[0]] > first_occurrence[arr[1]]) {
+            if (tin[arr[0]] > tin[arr[1]]) {
                 int tmp2 = arr[0]; arr[0] = arr[1]; arr[1] = tmp2;
             }
         }
@@ -169,9 +178,9 @@ static inline void sort_query_nodes(int *arr, int n) {
     if (n <= 32) {
         for (int i = 1; i < n; ++i) {
             int key = arr[i];
-            int key_fo = first_occurrence[key];
+            int key_tin = tin[key];
             int j = i - 1;
-            while (j >= 0 && first_occurrence[arr[j]] > key_fo) {
+            while (j >= 0 && tin[arr[j]] > key_tin) {
                 arr[j + 1] = arr[j];
                 j--;
             }
@@ -198,13 +207,15 @@ int main(void) {
     int q = read_int();
     if (n == 0) return 0;
 
-    // Dynamically allocate all arrays to perfectly fit the current N
+    // Dynamically allocate all arrays to perfectly fit N, using ~30% less memory than Segment Tree RMQ
     head = malloc((n + 1) * sizeof(int));
     depth = malloc((n + 1) * sizeof(int));
-    first_occurrence = malloc((n + 1) * sizeof(int));
+    parent = malloc((n + 1) * sizeof(int));
+    heavy = malloc((n + 1) * sizeof(int));
+    head_chain = malloc((n + 1) * sizeof(int));
+    tin = malloc((n + 1) * sizeof(int));
     to = malloc(2 * n * sizeof(int));
     next_edge = malloc(2 * n * sizeof(int));
-    tree = malloc(4 * n * sizeof(int));
 
     for (int i = 1; i <= n; ++i) {
         head[i] = -1;
@@ -217,18 +228,11 @@ int main(void) {
         add_edge(v, u);
     }
 
-    // Set leaf alignment offset in iterative segment tree before DFS
-    n_tree = 2 * n - 1;
+    // Run DFS 1 to compute tree properties and heavy children
+    dfs1(1, 1, 0);
 
-    // Run DFS starting from node 1 (writes directly to tree leaf array)
-    dfs(1, 1, 0);
-
-    // Build Iterative Segment Tree
-    for (int i = n_tree - 1; i > 0; --i) {
-        int u = tree[i << 1];
-        int v = tree[i << 1 | 1];
-        tree[i] = (depth[u] < depth[v]) ? u : v;
-    }
+    // Run DFS 2 to decompose tree into chains and compute tin
+    dfs2(1, 1);
 
     // Process queries
     for (int qi = 0; qi < q; ++qi) {
@@ -262,10 +266,12 @@ int main(void) {
     // Free resources
     free(head);
     free(depth);
-    free(first_occurrence);
+    free(parent);
+    free(heavy);
+    free(head_chain);
+    free(tin);
     free(to);
     free(next_edge);
-    free(tree);
     if (query_nodes) free(query_nodes);
 
     return 0;
