@@ -8,6 +8,7 @@
   - **Unsupported Deficiencies:** Completely lacks advanced vector registers (No AVX, AVX2, or AVX-512) and lacks parallel bit manipulation extensions (No BMI1 or BMI2).
 - **Sandbox Fallbacks:** 512KB RAM / 0.15s runtime execution limit unless explicit problem thresholds override.
 - **Isolation:** Execute operations exclusively inside the target problem directory. Maintain a global git repository in the root directory. Stay blind to adjacent subfolders.
+- **Local Compilation Exception:** macOS does not support the `-static` flag and will fail with a `library 'crt0.o' not found` linker error. When compiling and testing binaries locally, you must strip out the `-static` flag from your execution command (e.g., use `gcc -m64 -O2 -std=c11 %src% -o %bin% -lm`). Only include the `-static` flag if you are explicitly validating build rules for the remote platform container.
 
 ## Automated Scraping & Setup
 - **Automation Skill:** Maintain and execute an external, parametric script toolkit stored exclusively in the root directory inside `.skills/` (e.g., `.skills/fetch_task.py`). You are strictly forbidden from searching or placing skills outside this designated folder. Use this script to parse remote problem specs, extracting execution limits and DOM text blocks to save directly into a structured local `./PROBLEM_ID/PROBLEM.md` file.
