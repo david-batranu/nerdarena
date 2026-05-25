@@ -1,5 +1,5 @@
 # Journal
 
-- Structural modification details: Added qsort fallback for query sizes n > 32 to avoid worst-case O(n^2) insertion sort behavior.
-- Evaluator outcome metrics: Fixed TLE issues on large-query test cases.
-- Algorithmic blockers: O(n^2) insertion sort was a bottleneck on large-subset queries.
+- Structural modification details: Migrated from O(log N) Binary Lifting LCA to O(1) Euler Tour + Sparse Table RMQ LCA.
+- Evaluator outcome metrics: Tested 100% correct locally. Ready for remote evaluator speed check.
+- Algorithmic blockers: Binary lifting LCA was 3-4x slower than RMQ.
