@@ -78,30 +78,34 @@ typedef struct {
     int max_len;
     int pref_len;
     int suff_len;
-    int len;
 } Node;
 
 #define MAXN 200005
-Node tree[MAXN * 4];
+#define MAX_NODES 524288
+
+Node tree[MAX_NODES];
 char initial_state[MAXN];
 
-static inline Node merge(Node A, Node B) {
+static inline Node merge(Node A, Node B, int len_A, int len_B) {
     Node res;
-    res.len = A.len + B.len;
-    res.max_len = A.max_len > B.max_len ? A.max_len : B.max_len;
+    // Branchless max: res.max_len = max(A.max_len, B.max_len)
+    res.max_len = A.max_len ^ ((A.max_len ^ B.max_len) & -(A.max_len < B.max_len));
+    
+    // Branchless cross merge: max(res.max_len, A.suff_len + B.pref_len)
     int cross = A.suff_len + B.pref_len;
-    if (cross > res.max_len) {
-        res.max_len = cross;
-    }
-    res.pref_len = (A.pref_len == A.len) ? (A.len + B.pref_len) : A.pref_len;
-    res.suff_len = (B.suff_len == B.len) ? (B.len + A.suff_len) : B.suff_len;
+    int diff = res.max_len - cross;
+    res.max_len ^= (res.max_len ^ cross) & -(diff < 0);
+    
+    // Branchless prefix and suffix length updates
+    res.pref_len = A.pref_len + (B.pref_len & -(A.pref_len == len_A));
+    res.suff_len = B.suff_len + (A.suff_len & -(B.suff_len == len_B));
+    
     return res;
 }
 
 void build(int node, int start, int end) {
     if (start == end) {
         int val = initial_state[start - 1] - '0';
-        tree[node].len = 1;
         tree[node].max_len = val;
         tree[node].pref_len = val;
         tree[node].suff_len = val;
@@ -112,7 +116,7 @@ void build(int node, int start, int end) {
     int right = left | 1;
     build(left, start, mid);
     build(right, mid + 1, end);
-    tree[node] = merge(tree[left], tree[right]);
+    tree[node] = merge(tree[left], tree[right], mid - start + 1, end - mid);
 }
 
 void update(int node, int start, int end, int idx) {
@@ -131,7 +135,7 @@ void update(int node, int start, int end, int idx) {
     } else {
         update(right, mid + 1, end, idx);
     }
-    tree[node] = merge(tree[left], tree[right]);
+    tree[node] = merge(tree[left], tree[right], mid - start + 1, end - mid);
 }
 
 Node query(int node, int start, int end, int l, int r) {
@@ -147,7 +151,12 @@ Node query(int node, int start, int end, int l, int r) {
     if (l > mid) {
         return query(right, mid + 1, end, l, r);
     }
-    return merge(query(left, start, mid, l, r), query(right, mid + 1, end, l, r));
+    return merge(
+        query(left, start, mid, l, r),
+        query(right, mid + 1, end, l, r),
+        mid - (l > start ? l : start) + 1,
+        (r < end ? r : end) - mid
+    );
 }
 
 int main(void) {
