@@ -19,21 +19,21 @@ static inline void add_edge(int u, int v) {
 // Tree properties
 int depth[MAXN];
 int first_occurrence[MAXN];
-int euler[MAX_TOUR];
 int tour_len = 0;
 
 // Iterative Segment Tree for RMQ
 int tree[MAX_TOUR * 2];
 int n_tree;
 
-// Fast I/O buffers
-static char io_buf[1 << 20];
+// Fast I/O buffers (128 KB is highly optimal and saves 1.8 MB of memory)
+#define IO_BUF_SIZE 131072
+static char io_buf[IO_BUF_SIZE];
 static char *buf_ptr = io_buf;
 static char *buf_end = io_buf;
 
 static inline int read_int(void) {
     while (buf_ptr >= buf_end) {
-        int len = fread(io_buf, 1, sizeof(io_buf), stdin);
+        int len = fread(io_buf, 1, IO_BUF_SIZE, stdin);
         if (len <= 0) return 0;
         buf_ptr = io_buf;
         buf_end = io_buf + len;
@@ -41,7 +41,7 @@ static inline int read_int(void) {
     while (*buf_ptr <= ' ') {
         buf_ptr++;
         while (buf_ptr >= buf_end) {
-            int len = fread(io_buf, 1, sizeof(io_buf), stdin);
+            int len = fread(io_buf, 1, IO_BUF_SIZE, stdin);
             if (len <= 0) return 0;
             buf_ptr = io_buf;
             buf_end = io_buf + len;
@@ -52,7 +52,7 @@ static inline int read_int(void) {
         res = res * 10 + (*buf_ptr - '0');
         buf_ptr++;
         if (buf_ptr >= buf_end) {
-            int len = fread(io_buf, 1, sizeof(io_buf), stdin);
+            int len = fread(io_buf, 1, IO_BUF_SIZE, stdin);
             if (len > 0) {
                 buf_ptr = io_buf;
                 buf_end = io_buf + len;
@@ -63,11 +63,11 @@ static inline int read_int(void) {
 }
 
 // Fast Output
-static char out_buf[1 << 20];
+static char out_buf[IO_BUF_SIZE];
 static char *out_ptr = out_buf;
 
 static inline void write_char(char c) {
-    if (out_ptr >= out_buf + sizeof(out_buf)) {
+    if (out_ptr >= out_buf + IO_BUF_SIZE) {
         fwrite(out_buf, 1, out_ptr - out_buf, stdout);
         out_ptr = out_buf;
     }
@@ -97,16 +97,16 @@ static inline void flush_output(void) {
     }
 }
 
-// DFS to compute Euler Tour, depths and first occurrences
+// DFS to compute Euler Tour, depths and first occurrences directly inside Segment Tree leaf array
 void dfs(int u, int p, int d) {
     depth[u] = d;
     first_occurrence[u] = tour_len;
-    euler[tour_len++] = u;
+    tree[n_tree + tour_len++] = u;
     for (int e = head[u]; e != -1; e = next_edge[e]) {
         int v = to[e];
         if (v != p) {
             dfs(v, u, d + 1);
-            euler[tour_len++] = u;
+            tree[n_tree + tour_len++] = u;
         }
     }
 }
@@ -211,14 +211,13 @@ int main(void) {
         add_edge(v, u);
     }
 
-    // Run DFS starting from node 1
+    // Set leaf alignment offset in iterative segment tree before DFS
+    n_tree = 2 * n - 1;
+
+    // Run DFS starting from node 1 (writes directly to tree leaf array)
     dfs(1, 1, 0);
 
     // Build Iterative Segment Tree
-    n_tree = tour_len;
-    for (int i = 0; i < tour_len; ++i) {
-        tree[n_tree + i] = euler[i];
-    }
     for (int i = n_tree - 1; i > 0; --i) {
         int u = tree[i << 1];
         int v = tree[i << 1 | 1];
