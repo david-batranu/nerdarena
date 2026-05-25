@@ -3,7 +3,6 @@
 
 #define MAXN 200005
 #define MAX_TOUR 400005
-#define LOG_TOUR 20
 
 // Adjacency list representation
 int head[MAXN];
@@ -23,8 +22,9 @@ int first_occurrence[MAXN];
 int euler[MAX_TOUR];
 int tour_len = 0;
 
-// RMQ Sparse Table
-int rmq[LOG_TOUR][MAX_TOUR];
+// Iterative Segment Tree for RMQ
+int tree[MAX_TOUR * 2];
+int n_tree;
 
 // Fast I/O buffers
 static char io_buf[1 << 20];
@@ -111,7 +111,7 @@ void dfs(int u, int p, int d) {
     }
 }
 
-// LCA using RMQ
+// LCA using Iterative Segment Tree
 static inline int get_lca(int u, int v) {
     int l = first_occurrence[u];
     int r = first_occurrence[v];
@@ -121,12 +121,18 @@ static inline int get_lca(int u, int v) {
         r = tmp;
     }
     
-    int len = r - l + 1;
-    int k = 31 - __builtin_clz(len);
-    int ans1 = rmq[k][l];
-    int ans2 = rmq[k][r - (1 << k) + 1];
-    
-    return (depth[ans1] < depth[ans2]) ? ans1 : ans2;
+    int ans = tree[n_tree + l];
+    for (l += n_tree, r += n_tree + 1; l < r; l >>= 1, r >>= 1) {
+        if (l & 1) {
+            int cur = tree[l++];
+            if (depth[cur] < depth[ans]) ans = cur;
+        }
+        if (r & 1) {
+            int cur = tree[--r];
+            if (depth[cur] < depth[ans]) ans = cur;
+        }
+    }
+    return ans;
 }
 
 // Distance in tree
@@ -208,17 +214,15 @@ int main(void) {
     // Run DFS starting from node 1
     dfs(1, 1, 0);
 
-    // Build Sparse Table for RMQ
+    // Build Iterative Segment Tree
+    n_tree = tour_len;
     for (int i = 0; i < tour_len; ++i) {
-        rmq[0][i] = euler[i];
+        tree[n_tree + i] = euler[i];
     }
-    for (int k = 1; (1 << k) <= tour_len; ++k) {
-        int len = 1 << (k - 1);
-        for (int i = 0; i + (1 << k) <= tour_len; ++i) {
-            int u = rmq[k - 1][i];
-            int v = rmq[k - 1][i + len];
-            rmq[k][i] = (depth[u] < depth[v]) ? u : v;
-        }
+    for (int i = n_tree - 1; i > 0; --i) {
+        int u = tree[i << 1];
+        int v = tree[i << 1 | 1];
+        tree[i] = (depth[u] < depth[v]) ? u : v;
     }
 
     // Process queries
