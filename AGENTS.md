@@ -43,10 +43,20 @@
 - **Automatic Skill Discovery:** Before writing a new automation script, you must run a silent directory listing of the `.skills/` folder to discover existing tools. Do not maintain a written `skills.md` file; rely strictly on clean script naming conventions (e.g., `.skills/fetch_task.py`, `.skills/stress_test.py`) and standard inline python docstrings for self-documentation. Keep tool response streams highly sparse and actionable to safeguard active token boundaries.
 
 ## Leaderboard Gold-Standard Guidelines (Double-Crown Optimization)
-- **Dynamic Heap Memory Allocations**: To claim 1st place in memory, completely reject massive compile-time static/BSS global arrays (e.g. `int arr[MAXN]`). Instead, use dynamic runtime allocations (`malloc`/`calloc`) allocated precisely to the actual input parameters ($N, Q$). Use `realloc` for query buffers to dynamically grow them on-demand. This reduces virtual memory page-mapping overhead and ensures minimum Resident Set Size (RSS) across all test cases.
-- **Iterative Segment Trees over Sparse Tables**: While Sparse Tables provide $O(1)$ RMQ, their $O(N \log N)$ space complexity incurs significant memory penalties ($\approx 30+$ MB). Swap them for **Iterative Segment Trees** (Segment Tree over Euler Tour) which only require $O(N)$ memory ($\approx 3$ MB) and execute queries with blazing-fast iterative bitwise loop shifts (`l >>= 1, r >>= 1`) and zero branching.
-- **Array Elision via Leaf-Direct Writes**: Completely bypass temporary arrays (such as the DFS Euler Tour array). Directly write DFS traversal steps straight into the leaf segment of the Segment Tree layout (knowing `n_tree = 2N - 1` beforehand), saving mega-bytes of auxiliary buffers.
-- **Hybrid Micro-Sorting**: Bypassing standard `qsort` is crucial for performance. For small array subsets (e.g. $k \le 3$), use manual inlined branchless comparisons. For $k \le 32$, use inlined Insertion Sort to avoid function call stack frames. Use `qsort` ONLY as an $O(k \log k)$ safety fallback for $k > 32$.
-- **Direct Memory I/O Buffering**: Downsize standard I/O streams to a highly optimal $128$ KB `fread`/`fwrite` chunk system. A $128$ KB buffer retains maximum hardware page-caching throughput while saving $1.8$ MB of RAM compared to 1MB buffers.
+> [!NOTE]
+> These are not absolute rigid rules, but rather high-level **Time-Space Trade-Off strategies** to be applied analytically depending on whether the problem's bottlenecks favor execution time or memory footprint.
+
+- **Dynamic Heap Memory Allocations (Resident Memory Optimization)**: 
+  - *Strategy:* To minimize Resident Set Size (RSS) and secure the top memory rank, avoid massive compile-time static/BSS global arrays (e.g. `int arr[MAXN]`). Instead, use dynamic allocations (`malloc`/`calloc`) matching the actual input parameters ($N, Q$).
+  - *Trade-Off:* Only apply when aiming to optimize peak memory footprint. For extremely tight execution-time limits with lax memory bounds, static BSS arrays remain superior by completely avoiding dynamic allocation overhead and pointer initialization.
+- **Iterative Segment Trees vs. Sparse Tables**: 
+  - *Strategy:* While Sparse Tables provide $O(1)$ RMQ, their $O(N \log N)$ space complexity incurs heavy memory overhead ($\approx 30+$ MB). An **Iterative Segment Tree** over the DFS Euler Tour requires only $O(N)$ memory ($\approx 3$ MB) and queries in $O(\log \text{range})$ using blazing-fast iterative bitwise loop shifts (`l >>= 1, r >>= 1`) and zero branching.
+  - *Trade-Off:* Use Iterative Segment Trees to dramatically optimize memory. However, if the time limit is extremely tight (e.g. $< 0.15$s) and query count $Q$ is massive, the $O(1)$ query time of a Sparse Table is superior despite the memory penalty.
+- **Array Elision via Leaf-Direct Writes**: 
+  - *Strategy:* Bypass temporary intermediate arrays (such as the DFS Euler Tour array). Directly write traversal steps straight into the leaf segment of the Segment Tree layout (knowing `n_tree = 2N - 1` beforehand), eliminating auxiliary buffer allocations in memory.
+- **Hybrid Micro-Sorting**: 
+  - *Strategy:* Bypassing standard `qsort` is crucial for performance when the average query size $k$ is small. For small array subsets (e.g. $k \le 3$), use manual inlined branchless comparisons. For $k \le 32$, use inlined Insertion Sort to avoid function call stack frames. Use `qsort` ONLY as an $O(k \log k)$ safety fallback for $k > 32$.
+- **Direct Memory I/O Buffering**: 
+  - *Strategy:* Downsize standard I/O streams to a highly optimal $128$ KB `fread`/`fwrite` chunk system. A $128$ KB buffer retains maximum hardware page-caching throughput while saving $1.8$ MB of RAM compared to 1MB buffers.
 
 ### Dynamic Constraints
