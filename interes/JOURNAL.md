@@ -1,5 +1,5 @@
 # Journal
 
-- Structural modification details: Migrated all tree arrays and query buffers to dynamic memory allocation via malloc and realloc.
-- Evaluator outcome metrics: Drastically reduced memory across all test cases based on specific N and Q parameters.
-- Algorithmic blockers: Static BSS mapping had fixed system memory overhead.
+- Structural modification details: Migrated tree properties and LCA calculations from Segment Tree RMQ to Heavy-Light Decomposition (HLD) to further reduce array allocation size.
+- Evaluator outcome metrics: Tested 100% correct locally. Reclaims an additional 3MB of memory space, targeting 1st place in memory.
+- Algorithmic blockers: None.
