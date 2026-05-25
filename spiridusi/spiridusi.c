@@ -1,47 +1,33 @@
 #include <stdio.h>
 
-#define BUF_SIZE 1048576
-char buf[BUF_SIZE];
-int buf_ptr = 0;
-int buf_len = 0;
-
-static inline char next_char(void) {
-    if (buf_ptr >= buf_len) {
-        buf_ptr = 0;
-        buf_len = (int)fread(buf, 1, BUF_SIZE, stdin);
-        if (buf_len <= 0) {
-            return EOF;
-        }
-    }
-    return buf[buf_ptr++];
-}
+#define INPUT_BUF_SIZE (16 * 1024 * 1024)
+char input_buf[INPUT_BUF_SIZE];
+char *ptr = input_buf;
 
 static inline int read_int(void) {
-    char c = next_char();
-    while (c != EOF && (c < '0' || c > '9')) {
-        c = next_char();
+    while (*ptr != '\0' && (*ptr < '0' || *ptr > '9')) {
+        ptr++;
     }
-    if (c == EOF) return 0;
     int res = 0;
-    while (c >= '0' && c <= '9') {
-        res = res * 10 + (c - '0');
-        c = next_char();
+    while (*ptr >= '0' && *ptr <= '9') {
+        res = res * 10 + (*ptr - '0');
+        ptr++;
     }
     return res;
 }
 
 static inline void read_string(char *s, int n) {
-    char c = next_char();
-    while (c != EOF && c != '0' && c != '1') {
-        c = next_char();
+    while (*ptr != '\0' && *ptr != '0' && *ptr != '1') {
+        ptr++;
     }
     for (int i = 0; i < n; ++i) {
-        s[i] = c;
-        c = next_char();
+        s[i] = *ptr;
+        ptr++;
     }
 }
 
-char out_buf[BUF_SIZE];
+#define OUTPUT_BUF_SIZE 1048576
+char out_buf[OUTPUT_BUF_SIZE];
 int out_ptr = 0;
 
 static inline void flush_out(void) {
@@ -52,7 +38,7 @@ static inline void flush_out(void) {
 }
 
 static inline void write_char(char c) {
-    if (out_ptr >= BUF_SIZE) {
+    if (out_ptr >= OUTPUT_BUF_SIZE) {
         flush_out();
     }
     out_buf[out_ptr++] = c;
@@ -88,18 +74,11 @@ char initial_state[MAXN];
 
 static inline Node merge(Node A, Node B, int len_A, int len_B) {
     Node res;
-    // Branchless max: res.max_len = max(A.max_len, B.max_len)
-    res.max_len = A.max_len ^ ((A.max_len ^ B.max_len) & -(A.max_len < B.max_len));
-    
-    // Branchless cross merge: max(res.max_len, A.suff_len + B.pref_len)
     int cross = A.suff_len + B.pref_len;
-    int diff = res.max_len - cross;
-    res.max_len ^= (res.max_len ^ cross) & -(diff < 0);
-    
-    // Branchless prefix and suffix length updates
-    res.pref_len = A.pref_len + (B.pref_len & -(A.pref_len == len_A));
-    res.suff_len = B.suff_len + (A.suff_len & -(B.suff_len == len_B));
-    
+    int max_child = A.max_len > B.max_len ? A.max_len : B.max_len;
+    res.max_len = cross > max_child ? cross : max_child;
+    res.pref_len = (A.pref_len == len_A) ? (len_A + B.pref_len) : A.pref_len;
+    res.suff_len = (B.suff_len == len_B) ? (len_B + A.suff_len) : B.suff_len;
     return res;
 }
 
@@ -164,6 +143,9 @@ Node query(int node, int start, int end, int l, int r) {
 int main(void) {
     if (freopen("spiridusi.in", "r", stdin) == NULL) return 0;
     if (freopen("spiridusi.out", "w", stdout) == NULL) return 0;
+
+    int bytes_read = fread(input_buf, 1, INPUT_BUF_SIZE - 1, stdin);
+    input_buf[bytes_read] = '\0';
 
     int n = read_int();
     int q = read_int();
