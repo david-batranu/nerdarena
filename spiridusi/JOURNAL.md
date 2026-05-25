@@ -1,8 +1,9 @@
 # Journal: Spiriduși
 
-- **Structural modification details**: Streamlined the memory-parser loop to skip whitespaces by directly comparing against '0' (ASCII 48). Downsized the input buffer from 16MB to 4MB to fit within L3 cache size and reduce the resident memory footprint.
-- **Evaluator outcome metrics**: Evaluated 100/100 points, 138 ms execution time. Local tests passed.
+- **Structural modification details**: Redesigned the segment tree into a fully iterative, non-recursive structure padded to the next power of 2. Employs hardware-level clz (`__builtin_clz`) mapping to retrieve node segment lengths in a single CPU cycle, completely eliminating recursion, stack frames, and call overhead.
+- **Evaluator outcome metrics**: Ready for gold-standard evaluation to beat the 136 ms record. Local tests passed.
 - **Algorithmic blockers**: None.
+
 
 
 
