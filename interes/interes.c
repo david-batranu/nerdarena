@@ -2,7 +2,8 @@
 #include <stdlib.h>
 
 #define MAXN 200005
-#define LOGN 18
+#define MAX_TOUR 400005
+#define LOG_TOUR 20
 
 // Adjacency list representation
 int head[MAXN];
@@ -18,11 +19,12 @@ static inline void add_edge(int u, int v) {
 
 // Tree properties
 int depth[MAXN];
-int tin[MAXN];
-int timer = 0;
-int up[MAXN][LOGN];
-int max_depth = 0;
-int max_log = 0;
+int first_occurrence[MAXN];
+int euler[MAX_TOUR];
+int tour_len = 0;
+
+// RMQ Sparse Table
+int rmq[LOG_TOUR][MAX_TOUR];
 
 // Fast I/O buffers
 static char io_buf[1 << 20];
@@ -95,47 +97,36 @@ static inline void flush_output(void) {
     }
 }
 
-// DFS to compute depths and entry times
-void dfs(int u, int p) {
-    tin[u] = ++timer;
-    up[u][0] = p;
-    if (depth[u] > max_depth) {
-        max_depth = depth[u];
-    }
+// DFS to compute Euler Tour, depths and first occurrences
+void dfs(int u, int p, int d) {
+    depth[u] = d;
+    first_occurrence[u] = tour_len;
+    euler[tour_len++] = u;
     for (int e = head[u]; e != -1; e = next_edge[e]) {
         int v = to[e];
         if (v != p) {
-            depth[v] = depth[u] + 1;
-            dfs(v, u);
+            dfs(v, u, d + 1);
+            euler[tour_len++] = u;
         }
     }
 }
 
-// LCA using binary lifting
+// LCA using RMQ
 static inline int get_lca(int u, int v) {
-    if (depth[u] < depth[v]) {
-        int tmp = u;
-        u = v;
-        v = tmp;
+    int l = first_occurrence[u];
+    int r = first_occurrence[v];
+    if (l > r) {
+        int tmp = l;
+        l = r;
+        r = tmp;
     }
     
-    int diff = depth[u] - depth[v];
-    while (diff) {
-        int i = __builtin_ctz(diff);
-        u = up[u][i];
-        diff &= diff - 1;
-    }
+    int len = r - l + 1;
+    int k = 31 - __builtin_clz(len);
+    int ans1 = rmq[k][l];
+    int ans2 = rmq[k][r - (1 << k) + 1];
     
-    if (u == v) return u;
-    
-    for (int i = max_log; i >= 0; --i) {
-        if (up[u][i] != up[v][i]) {
-            u = up[u][i];
-            v = up[v][i];
-        }
-    }
-    
-    return up[u][0];
+    return (depth[ans1] < depth[ans2]) ? ans1 : ans2;
 }
 
 // Distance in tree
@@ -143,17 +134,17 @@ static inline int get_dist(int u, int v) {
     return depth[u] + depth[v] - 2 * depth[get_lca(u, v)];
 }
 
-// Comparison function for sorting query nodes by tin using qsort
+// Comparison function for sorting query nodes by first_occurrence using qsort
 static int compare_nodes(const void *a, const void *b) {
     int u = *(const int *)a;
     int v = *(const int *)b;
-    return tin[u] - tin[v];
+    return first_occurrence[u] - first_occurrence[v];
 }
 
-// Custom sort function optimized for small arrays & DFS preorder tin sorting
+// Custom sort function optimized for small arrays
 static inline void sort_query_nodes(int *arr, int n) {
     if (n == 2) {
-        if (tin[arr[0]] > tin[arr[1]]) {
+        if (first_occurrence[arr[0]] > first_occurrence[arr[1]]) {
             int tmp = arr[0];
             arr[0] = arr[1];
             arr[1] = tmp;
@@ -161,24 +152,23 @@ static inline void sort_query_nodes(int *arr, int n) {
         return;
     }
     if (n == 3) {
-        if (tin[arr[0]] > tin[arr[1]]) {
+        if (first_occurrence[arr[0]] > first_occurrence[arr[1]]) {
             int tmp = arr[0]; arr[0] = arr[1]; arr[1] = tmp;
         }
-        if (tin[arr[1]] > tin[arr[2]]) {
+        if (first_occurrence[arr[1]] > first_occurrence[arr[2]]) {
             int tmp = arr[1]; arr[1] = arr[2]; arr[2] = tmp;
-            if (tin[arr[0]] > tin[arr[1]]) {
+            if (first_occurrence[arr[0]] > first_occurrence[arr[1]]) {
                 int tmp2 = arr[0]; arr[0] = arr[1]; arr[1] = tmp2;
             }
         }
         return;
     }
     if (n <= 32) {
-        // Insertion sort for small sub-arrays
         for (int i = 1; i < n; ++i) {
             int key = arr[i];
-            int key_tin = tin[key];
+            int key_fo = first_occurrence[key];
             int j = i - 1;
-            while (j >= 0 && tin[arr[j]] > key_tin) {
+            while (j >= 0 && first_occurrence[arr[j]] > key_fo) {
                 arr[j + 1] = arr[j];
                 j--;
             }
@@ -186,7 +176,6 @@ static inline void sort_query_nodes(int *arr, int n) {
         }
         return;
     }
-    // Fallback to standard library qsort for larger n to avoid O(n^2) worst case
     qsort(arr, n, sizeof(int), compare_nodes);
 }
 
@@ -217,16 +206,18 @@ int main(void) {
     }
 
     // Run DFS starting from node 1
-    depth[1] = 0;
-    dfs(1, 1);
+    dfs(1, 1, 0);
 
-    // Compute max log limit
-    max_log = 31 - __builtin_clz(max_depth | 1);
-
-    // Fill binary lifting table iteratively and cache-friendly
-    for (int i = 1; i <= max_log; ++i) {
-        for (int u = 1; u <= n; ++u) {
-            up[u][i] = up[up[u][i - 1]][i - 1];
+    // Build Sparse Table for RMQ
+    for (int i = 0; i < tour_len; ++i) {
+        rmq[0][i] = euler[i];
+    }
+    for (int k = 1; (1 << k) <= tour_len; ++k) {
+        int len = 1 << (k - 1);
+        for (int i = 0; i + (1 << k) <= tour_len; ++i) {
+            int u = rmq[k - 1][i];
+            int v = rmq[k - 1][i + len];
+            rmq[k][i] = (depth[u] < depth[v]) ? u : v;
         }
     }
 
@@ -237,7 +228,7 @@ int main(void) {
             query_nodes[i] = read_int();
         }
 
-        // Sort nodes by tin using optimized sort
+        // Sort nodes using optimized sort
         sort_query_nodes(query_nodes, k);
 
         long long total_dist = 0;
