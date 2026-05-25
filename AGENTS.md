@@ -32,6 +32,10 @@
   - Eliminate unpredictable conditional tracking jumps by replacing standard `if-else` loops with branchless bitwise masking calculations.
 - **Hardware Pruning:** Use assembly-mapped compiler intrinsics like `__builtin_popcountll` and `__builtin_clzll` for single-cycle operations. Do not attempt vectorization loops, as the underlying silicon lacks the hardware processing units.
 - **Memory Profiling:** Zero dynamic allocations (`malloc`). Keep processing stacks bounded strictly below $O(\log N)$. Stream incoming source files through an inlined 4KB chunk-buffered `fread` parser using manual accumulation integer logic to maximize cache line locality within shared L3 block boundaries.
+- **Data Structure Optimization & Hardware Alignment:**
+  - **Iterative Bottom-Up Paradigm**: Reject recursive structures for trees and range query engines (e.g., Segment Trees, Fenwick Trees). Default to zero-recursion, zero-stack-frame iterative implementations padded to the nearest power of 2.
+  - **Hardware-Level Bit-Manipulation**: Leverage architecture-specific intrinsics (like `__builtin_clz`, `__builtin_ctz`, and `__builtin_popcount`) to dynamically calculate tree node properties (such as dynamic segment lengths or heights) in $O(1)$ CPU cycles instead of maintaining helper structural properties in memory or relying on call stack recursion parameters.
+  - **Memory Compression & Layout**: Maintain strict cache-line alignment. Pack tree nodes using bitfields or structure truncation to keep their size below 16 bytes, and bound memory arrays exactly to the minimum leaf power of 2 to guarantee the entire structure resides in L1/L2/L3 cache blocks.
 
 ## Journaling & Operational Skills
 - **Journal Format:** Keep `JOURNAL.md` below 15 lines per iteration. Use bulleted telemetry metrics only: (1) Structural modification details, (2) Evaluator outcome metrics, (3) Algorithmic blockers. No raw code clips or stream dumps.
