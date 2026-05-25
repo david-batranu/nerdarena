@@ -143,6 +143,13 @@ static inline int get_dist(int u, int v) {
     return depth[u] + depth[v] - 2 * depth[get_lca(u, v)];
 }
 
+// Comparison function for sorting query nodes by tin using qsort
+static int compare_nodes(const void *a, const void *b) {
+    int u = *(const int *)a;
+    int v = *(const int *)b;
+    return tin[u] - tin[v];
+}
+
 // Custom sort function optimized for small arrays & DFS preorder tin sorting
 static inline void sort_query_nodes(int *arr, int n) {
     if (n == 2) {
@@ -165,17 +172,22 @@ static inline void sort_query_nodes(int *arr, int n) {
         }
         return;
     }
-    // Insertion sort for small sub-arrays
-    for (int i = 1; i < n; ++i) {
-        int key = arr[i];
-        int key_tin = tin[key];
-        int j = i - 1;
-        while (j >= 0 && tin[arr[j]] > key_tin) {
-            arr[j + 1] = arr[j];
-            j--;
+    if (n <= 32) {
+        // Insertion sort for small sub-arrays
+        for (int i = 1; i < n; ++i) {
+            int key = arr[i];
+            int key_tin = tin[key];
+            int j = i - 1;
+            while (j >= 0 && tin[arr[j]] > key_tin) {
+                arr[j + 1] = arr[j];
+                j--;
+            }
+            arr[j + 1] = key;
         }
-        arr[j + 1] = key;
+        return;
     }
+    // Fallback to standard library qsort for larger n to avoid O(n^2) worst case
+    qsort(arr, n, sizeof(int), compare_nodes);
 }
 
 // Temporary storage for queries
