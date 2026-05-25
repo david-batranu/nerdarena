@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#define BUF_SIZE 65536
+#define BUF_SIZE 1048576
 char buf[BUF_SIZE];
 int buf_ptr = 0;
 int buf_len = 0;
@@ -151,12 +151,16 @@ Node query(int node, int start, int end, int l, int r) {
     if (l > mid) {
         return query(right, mid + 1, end, l, r);
     }
-    return merge(
-        query(left, start, mid, l, r),
-        query(right, mid + 1, end, l, r),
-        mid - (l > start ? l : start) + 1,
-        (r < end ? r : end) - mid
-    );
+    
+    Node ql = query(left, start, mid, l, r);
+    Node qr = query(right, mid + 1, end, l, r);
+    
+    // Branchless max_l = max(start, l)
+    int max_l = start ^ ((start ^ l) & -(start < l));
+    // Branchless min_r = min(end, r)
+    int min_r = r ^ ((r ^ end) & -(r < end));
+    
+    return merge(ql, qr, mid - max_l + 1, min_r - mid);
 }
 
 int main(void) {
