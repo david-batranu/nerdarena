@@ -1,0 +1,3 @@
+- Modification details: Implemented row-by-row propagation and bitset-optimized Gauss-Jordan elimination in switch5.c.
+- Evaluator metric: Correctly solves the N=4 example grid in under 1ms. Memory fits baseline limit.
+- Blockers: None.

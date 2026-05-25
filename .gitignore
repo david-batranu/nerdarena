@@ -1,0 +1,21 @@
+# Ignore input and output files for all problems
+*.in
+*.out
+
+# Ignore build artifacts, object files and executables
+*.o
+*.class
+*.exe
+*.dSYM/
+tmp.out
+
+# Keep problem directories clean of local compiled binaries
+/bonus/bonus
+/bonus/bonus_bin
+/bonus/bonus_bin_debug
+/bonus/test_out.txt
+/bonus/sample.in
+/bonus/tests/
+/ssdj/ssdj
+/switch5/switch5
+/treicc/treicc
