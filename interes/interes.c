@@ -1,13 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAXN 200005
-#define MAX_TOUR 400005
-
 // Adjacency list representation
-int head[MAXN];
-int to[MAXN * 2];
-int next_edge[MAXN * 2];
+int *head;
+int *to;
+int *next_edge;
 int edge_cnt = 0;
 
 static inline void add_edge(int u, int v) {
@@ -17,15 +14,15 @@ static inline void add_edge(int u, int v) {
 }
 
 // Tree properties
-int depth[MAXN];
-int first_occurrence[MAXN];
+int *depth;
+int *first_occurrence;
 int tour_len = 0;
 
 // Iterative Segment Tree for RMQ
-int tree[MAX_TOUR * 2];
+int *tree;
 int n_tree;
 
-// Fast I/O buffers (128 KB is highly optimal and saves 1.8 MB of memory)
+// Fast I/O buffers (128 KB is highly optimal and saves memory)
 #define IO_BUF_SIZE 131072
 static char io_buf[IO_BUF_SIZE];
 static char *buf_ptr = io_buf;
@@ -185,8 +182,9 @@ static inline void sort_query_nodes(int *arr, int n) {
     qsort(arr, n, sizeof(int), compare_nodes);
 }
 
-// Temporary storage for queries
-int query_nodes[MAXN];
+// Dynamic storage for queries
+int *query_nodes = NULL;
+int query_nodes_capacity = 0;
 
 int main(void) {
     if (freopen("interes.in", "r", stdin) == NULL) {
@@ -199,6 +197,14 @@ int main(void) {
     int n = read_int();
     int q = read_int();
     if (n == 0) return 0;
+
+    // Dynamically allocate all arrays to perfectly fit the current N
+    head = malloc((n + 1) * sizeof(int));
+    depth = malloc((n + 1) * sizeof(int));
+    first_occurrence = malloc((n + 1) * sizeof(int));
+    to = malloc(2 * n * sizeof(int));
+    next_edge = malloc(2 * n * sizeof(int));
+    tree = malloc(4 * n * sizeof(int));
 
     for (int i = 1; i <= n; ++i) {
         head[i] = -1;
@@ -227,6 +233,13 @@ int main(void) {
     // Process queries
     for (int qi = 0; qi < q; ++qi) {
         int k = read_int();
+        
+        // Dynamically resize query node array up to the maximum K encountered so far
+        if (k > query_nodes_capacity) {
+            query_nodes_capacity = k;
+            query_nodes = realloc(query_nodes, query_nodes_capacity * sizeof(int));
+        }
+
         for (int i = 0; i < k; ++i) {
             query_nodes[i] = read_int();
         }
@@ -245,5 +258,15 @@ int main(void) {
     }
 
     flush_output();
+
+    // Free resources
+    free(head);
+    free(depth);
+    free(first_occurrence);
+    free(to);
+    free(next_edge);
+    free(tree);
+    if (query_nodes) free(query_nodes);
+
     return 0;
 }
