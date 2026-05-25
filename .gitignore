@@ -2,14 +2,17 @@
 *.in
 *.out
 
-# Ignore build artifacts, object files and executables
+# Ignore build artifacts, object files, executables, and global/local rules
 *.o
 *.class
 *.exe
 *.dSYM/
 tmp.out
+__pycache__/
+*.pyc
 
-# Keep problem directories clean of local compiled binaries
+
+# Keep problem directories clean of local compiled binaries and loose test suites
 /bonus/bonus
 /bonus/bonus_bin
 /bonus/bonus_bin_debug
