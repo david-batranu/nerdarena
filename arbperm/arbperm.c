@@ -1,9 +1,11 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define MAXN 100005
 #define BUF_SIZE 4096
+#define EOF -1
 
 // Packed representation for x and Q to reduce memory footprint.
 // High 17th bit is packed into a bit-array (using uint32_t).
@@ -50,43 +52,77 @@ char buf[BUF_SIZE];
 int buf_ptr = BUF_SIZE;
 int buf_len = BUF_SIZE;
 
-static inline char get_char(FILE *fin) {
+static inline char get_char(int fd) {
     if (buf_ptr >= buf_len) {
-        buf_len = fread(buf, 1, BUF_SIZE, fin);
+        buf_len = read(fd, buf, BUF_SIZE);
         buf_ptr = 0;
-        if (buf_len == 0) return EOF;
+        if (buf_len <= 0) return EOF;
     }
     return buf[buf_ptr++];
 }
 
-static inline int read_int(FILE *fin, int *val) {
-    char c = get_char(fin);
+static inline int read_int(int fd, int *val) {
+    char c = get_char(fd);
     while (c != EOF && (c < '0' || c > '9')) {
-        c = get_char(fin);
+        c = get_char(fd);
     }
     if (c == EOF) return 0;
     int res = 0;
     while (c >= '0' && c <= '9') {
         res = res * 10 + (c - '0');
-        c = get_char(fin);
+        c = get_char(fd);
     }
     *val = res;
     return 1;
 }
 
-static inline int read_long(FILE *fin, long long *val) {
-    char c = get_char(fin);
+static inline int read_long(int fd, long long *val) {
+    char c = get_char(fd);
     while (c != EOF && (c < '0' || c > '9')) {
-        c = get_char(fin);
+        c = get_char(fd);
     }
     if (c == EOF) return 0;
     long long res = 0;
     while (c >= '0' && c <= '9') {
         res = res * 10 + (c - '0');
-        c = get_char(fin);
+        c = get_char(fd);
     }
     *val = res;
     return 1;
+}
+
+char out_buf[BUF_SIZE];
+int out_ptr = 0;
+
+static inline void write_char(int fd, char c) {
+    if (out_ptr >= BUF_SIZE) {
+        write(fd, out_buf, out_ptr);
+        out_ptr = 0;
+    }
+    out_buf[out_ptr++] = c;
+}
+
+static inline void write_int(int fd, int val) {
+    if (val == 0) {
+        write_char(fd, '0');
+        return;
+    }
+    char temp[10];
+    int t_ptr = 0;
+    while (val > 0) {
+        temp[t_ptr++] = (val % 10) + '0';
+        val /= 10;
+    }
+    while (t_ptr > 0) {
+        write_char(fd, temp[--t_ptr]);
+    }
+}
+
+static inline void flush_out(int fd) {
+    if (out_ptr > 0) {
+        write(fd, out_buf, out_ptr);
+        out_ptr = 0;
+    }
 }
 
 // Fenwick tree functions
@@ -129,13 +165,13 @@ static inline int bit_find_kth(int n, int k) {
 }
 
 int main(void) {
-    FILE *fin = fopen("arbperm.in", "r");
-    if (!fin) return 0;
+    int fd_in = open("arbperm.in", O_RDONLY);
+    if (fd_in < 0) return 0;
 
     int n;
     long long k;
-    if (!read_int(fin, &n) || !read_long(fin, &k)) {
-        fclose(fin);
+    if (!read_int(fd_in, &n) || !read_long(fd_in, &k)) {
+        close(fd_in);
         return 0;
     }
 
@@ -149,11 +185,11 @@ int main(void) {
     // Step 1: Compute the insertion positions x_i on the fly
     for (int j = 0; j < n; ++j) {
         int val;
-        read_int(fin, &val);
+        read_int(fd_in, &val);
         set_x(val, bit_query(val - 1));
         bit_update(n, val, 1);
     }
-    fclose(fin);
+    close(fd_in);
 
     // Step 2: Add K to the mixed-radix number x
     long long carry = k;
@@ -183,12 +219,14 @@ int main(void) {
     }
 
     // Write to arbperm.out
-    FILE *fout = fopen("arbperm.out", "w");
-    if (fout) {
+    int fd_out = open("arbperm.out", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd_out >= 0) {
         for (int i = 0; i < n; ++i) {
-            fprintf(fout, "%d%c", get_Q(i), (i == n - 1) ? '\n' : ' ');
+            write_int(fd_out, get_Q(i));
+            write_char(fd_out, (i == n - 1) ? '\n' : ' ');
         }
-        fclose(fout);
+        flush_out(fd_out);
+        close(fd_out);
     }
 
     free(x_low);
