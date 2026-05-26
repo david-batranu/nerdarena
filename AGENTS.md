@@ -12,6 +12,7 @@
 
 ## Automated Scraping & Setup
 - **Automation Skill:** Maintain and execute an external, parametric script toolkit stored exclusively in the root directory inside `.skills/` (e.g., `.skills/fetch_task.py`). You are strictly forbidden from searching or placing skills outside this designated folder. Use this script to parse remote problem specs, extracting execution limits and DOM text blocks to save directly into a structured local `./PROBLEM_ID/PROBLEM.md` file.
+- **Strict Artifact Restrictions:** You are explicitly forbidden from generating, drafting, or maintaining secondary design, planning, walkthrough, or tracking files (e.g., `implementation_plan.md`, `task.md`, `walkthrough.md`, `plan.txt`). The only markdown files permitted to exist in the problem workspace are `PROBLEM.md`, `JOURNAL.md`, and `SCORES.md`. 
 - **Initial Checkpoint:** Generate the local specification markdown and initialize empty `JOURNAL.md` and `SCORES.md` tracking schemas before drafting code or compiling local test binaries.
 
 ## Workspace Hygiene, Artifact Cleanup & Git Constraints
@@ -50,8 +51,16 @@
   - *The Input-Bound Exception:* Switch to a custom chunk-buffered parsing routine (a 128 KB `fread` system using manual character-by-character integer accumulation) **ONLY IF** the problem is explicitly identified as input-bound. This applies when input data files span multiple megabytes while the core algorithmic complexity is highly lightweight ($O(N)$ or $O(N \log N)$), or if local validation tools confirm a TLE due to I/O bottlenecks. Do not waste token overhead or introduce parsing complexity if the algorithmic processing dominates the execution profile.
 - **Recursion Stack-Frame Elimination:** Deep recursive tree algorithms (DFS) allocate a stack frame for every node ($\approx 48$ bytes). At $N \ge 200,000$, this wastes $\approx 9.6$ MB of resident memory. Eliminate this completely by running an iterative BFS queue to establish topological order, then traverse in reverse topological order (bottom-up) for property aggregation. Free all temporary BFS index structures *before* answering queries.
 
+## Strict Reasoning & Mental Execution Topology (Verbosity Pruning)
+- **Zero-Banter Logic Stream:** Your internal reasoning or thinking block must operate as a sparse, high-density analytical stream. Completely eliminate conversational self-talk, meta-commentary, friendly transitions, or generic narrative descriptions of your progress.
+- **Mental Compilation Constraints:** Treat your active context space like an optimized compiler pass. Reason strictly via:
+  - Concise mathematical invariants or constraints.
+  - Big-O asymptotic profiles of potential code loops.
+  - Step-by-step memory allocation maps or bitfield state transformations.
+- **Banned Reasoning Structures:** Do not write prose outlines, pseudo-code blocks that duplicate the final C code, or long summaries explaining why an algorithm works. Transition directly from a mathematical or hardware observation to the final, highly-optimized C11 code string.
+
 ## Journaling & Operational Skills
-- **Journal Format:** Keep `JOURNAL.md` below 15 lines per iteration. Use bulleted telemetry metrics only: (1) Structural modification details, (2) Evaluator outcome metrics, (3) Algorithmic blockers. No raw code clips or stream dumps.
+- **Journal Format:** Keep `JOURNAL.md` below 15 lines per iteration. Use bulleted telemetry metrics only: (1) Structural modification details, (2) Evaluator outcome metrics, (3) Algorithmic blockers. No raw code clips or stream dumps. Do all reasoning and algorithmic planning natively inside your active context window; do not offload notes to the filesystem.
 - **Grader Score Logging:** Upon every remote evaluation submission, you must parse the resulting evaluation table and update the local `SCORES.md` file. 
 - **SCORES.md Format:** You must maintain a single, dense Markdown table matching the exact structure below. Track only the global peak metrics per submission version (`V1`, `V2`, etc.) to conserve token context. Do not log individual row-by-row test case diagnostics here.
 ```markdown
