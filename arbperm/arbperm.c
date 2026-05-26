@@ -13,7 +13,8 @@ uint32_t *x_high;
 uint16_t *Q_low;
 uint32_t *Q_high;
 
-int *bit;
+uint16_t *bit;
+int bit_65536;
 
 static inline void set_x(int idx, int val) {
     x_low[idx] = val & 0xFFFF;
@@ -91,14 +92,22 @@ static inline int read_long(FILE *fin, long long *val) {
 // Fenwick tree functions
 static inline void bit_update(int n, int idx, int val) {
     for (; idx <= n; idx += idx & -idx) {
-        bit[idx] += val;
+        if (idx == 65536) {
+            bit_65536 += val;
+        } else {
+            bit[idx] += val;
+        }
     }
 }
 
 static inline int bit_query(int idx) {
     int sum = 0;
     for (; idx > 0; idx -= idx & -idx) {
-        sum += bit[idx];
+        if (idx == 65536) {
+            sum += bit_65536;
+        } else {
+            sum += bit[idx];
+        }
     }
     return sum;
 }
@@ -108,9 +117,12 @@ static inline int bit_find_kth(int n, int k) {
     int idx = 0;
     int sum = 0;
     for (int step = 131072; step > 0; step >>= 1) {
-        if (idx + step <= n && sum + bit[idx + step] < k) {
-            idx += step;
-            sum += bit[idx];
+        if (idx + step <= n) {
+            int val = (idx + step == 65536) ? bit_65536 : bit[idx + step];
+            if (sum + val < k) {
+                idx += step;
+                sum += val;
+            }
         }
     }
     return idx + 1;
@@ -131,7 +143,8 @@ int main(void) {
     x_high = calloc((n + 32) / 32, sizeof(uint32_t));
     Q_low = malloc((n + 1) * sizeof(uint16_t));
     Q_high = calloc((n + 32) / 32, sizeof(uint32_t));
-    bit = calloc(n + 1, sizeof(int));
+    bit = calloc(n + 1, sizeof(uint16_t));
+    bit_65536 = 0;
 
     // Step 1: Compute the insertion positions x_i on the fly
     for (int j = 0; j < n; ++j) {
@@ -154,7 +167,11 @@ int main(void) {
     // Step 3: Reconstruct Q
     // Re-initialize Fenwick tree for Q reconstruction: each element is 1 (empty slot)
     for (int i = 1; i <= n; ++i) {
-        bit[i] = i & -i;
+        if (i == 65536) {
+            bit_65536 = i & -i;
+        } else {
+            bit[i] = i & -i;
+        }
     }
 
     // Place i from n down to 1 into the (x[i])-th empty slot
