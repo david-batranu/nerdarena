@@ -1,8 +1,11 @@
 # Journal
 
 - **Telemetry:**
-  - Version: V1
-  - Execution Time: 51 ms
-  - Memory: 1724 KB
+  - Version: V3
+  - Execution Time: 41 ms (Local sandbox)
+  - Memory: ~825 KB (Peak array allocation)
 - **Algorithmic Blockers:**
   - None
+- **Structural modifications:**
+  - Packed 17-bit arrays for x and Q.
+  - Dynamically allocated all tables.

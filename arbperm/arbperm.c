@@ -1,13 +1,49 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define MAXN 100005
 #define BUF_SIZE 4096
 
-// Static global arrays to eliminate heap allocation overhead (BSS segment)
-int x[MAXN];
-int bit[MAXN];
-int Q[MAXN];
+// Packed representation for x and Q to reduce memory footprint.
+// High 17th bit is packed into a bit-array (using uint32_t).
+uint16_t *x_low;
+uint32_t *x_high;
+
+uint16_t *Q_low;
+uint32_t *Q_high;
+
+int *bit;
+
+static inline void set_x(int idx, int val) {
+    x_low[idx] = val & 0xFFFF;
+    if (val & 0x10000) {
+        x_high[idx >> 5] |= (1U << (idx & 31));
+    } else {
+        x_high[idx >> 5] &= ~(1U << (idx & 31));
+    }
+}
+
+static inline int get_x(int idx) {
+    int low = x_low[idx];
+    int high = (x_high[idx >> 5] >> (idx & 31)) & 1;
+    return low | (high << 16);
+}
+
+static inline void set_Q(int idx, int val) {
+    Q_low[idx] = val & 0xFFFF;
+    if (val & 0x10000) {
+        Q_high[idx >> 5] |= (1U << (idx & 31));
+    } else {
+        Q_high[idx >> 5] &= ~(1U << (idx & 31));
+    }
+}
+
+static inline int get_Q(int idx) {
+    int low = Q_low[idx];
+    int high = (Q_high[idx >> 5] >> (idx & 31)) & 1;
+    return low | (high << 16);
+}
 
 char buf[BUF_SIZE];
 int buf_ptr = BUF_SIZE;
@@ -91,11 +127,17 @@ int main(void) {
         return 0;
     }
 
+    x_low = malloc((n + 1) * sizeof(uint16_t));
+    x_high = calloc((n + 32) / 32, sizeof(uint32_t));
+    Q_low = malloc((n + 1) * sizeof(uint16_t));
+    Q_high = calloc((n + 32) / 32, sizeof(uint32_t));
+    bit = calloc(n + 1, sizeof(int));
+
     // Step 1: Compute the insertion positions x_i on the fly
     for (int j = 0; j < n; ++j) {
         int val;
         read_int(fin, &val);
-        x[val] = bit_query(val - 1);
+        set_x(val, bit_query(val - 1));
         bit_update(n, val, 1);
     }
     fclose(fin);
@@ -103,11 +145,11 @@ int main(void) {
     // Step 2: Add K to the mixed-radix number x
     long long carry = k;
     for (int i = n; i >= 2 && carry > 0; --i) {
-        long long val = x[i] + carry;
-        x[i] = (int)(val % i);
+        long long val = get_x(i) + carry;
+        set_x(i, (int)(val % i));
         carry = val / i;
     }
-    x[1] = 0;
+    set_x(1, 0);
 
     // Step 3: Reconstruct Q
     // Re-initialize Fenwick tree for Q reconstruction: each element is 1 (empty slot)
@@ -117,9 +159,9 @@ int main(void) {
 
     // Place i from n down to 1 into the (x[i])-th empty slot
     for (int i = n; i >= 1; --i) {
-        int target_slot = x[i] + 1;
+        int target_slot = get_x(i) + 1;
         int p = bit_find_kth(n, target_slot);
-        Q[p - 1] = i;
+        set_Q(p - 1, i);
         bit_update(n, p, -1);
     }
 
@@ -127,10 +169,16 @@ int main(void) {
     FILE *fout = fopen("arbperm.out", "w");
     if (fout) {
         for (int i = 0; i < n; ++i) {
-            fprintf(fout, "%d%c", Q[i], (i == n - 1) ? '\n' : ' ');
+            fprintf(fout, "%d%c", get_Q(i), (i == n - 1) ? '\n' : ' ');
         }
         fclose(fout);
     }
+
+    free(x_low);
+    free(x_high);
+    free(Q_low);
+    free(Q_high);
+    free(bit);
 
     return 0;
 }
