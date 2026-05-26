@@ -1,14 +1,65 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MAXN 100005
+#define BUF_SIZE 4096
+
+// Static global arrays to eliminate heap allocation overhead (BSS segment)
+int x[MAXN];
+int bit[MAXN];
+int Q[MAXN];
+
+char buf[BUF_SIZE];
+int buf_ptr = BUF_SIZE;
+int buf_len = BUF_SIZE;
+
+static inline char get_char(FILE *fin) {
+    if (buf_ptr >= buf_len) {
+        buf_len = fread(buf, 1, BUF_SIZE, fin);
+        buf_ptr = 0;
+        if (buf_len == 0) return EOF;
+    }
+    return buf[buf_ptr++];
+}
+
+static inline int read_int(FILE *fin, int *val) {
+    char c = get_char(fin);
+    while (c != EOF && (c < '0' || c > '9')) {
+        c = get_char(fin);
+    }
+    if (c == EOF) return 0;
+    int res = 0;
+    while (c >= '0' && c <= '9') {
+        res = res * 10 + (c - '0');
+        c = get_char(fin);
+    }
+    *val = res;
+    return 1;
+}
+
+static inline int read_long(FILE *fin, long long *val) {
+    char c = get_char(fin);
+    while (c != EOF && (c < '0' || c > '9')) {
+        c = get_char(fin);
+    }
+    if (c == EOF) return 0;
+    long long res = 0;
+    while (c >= '0' && c <= '9') {
+        res = res * 10 + (c - '0');
+        c = get_char(fin);
+    }
+    *val = res;
+    return 1;
+}
+
 // Fenwick tree functions
-inline void bit_update(int *bit, int n, int idx, int val) {
+static inline void bit_update(int n, int idx, int val) {
     for (; idx <= n; idx += idx & -idx) {
         bit[idx] += val;
     }
 }
 
-inline int bit_query(int *bit, int idx) {
+static inline int bit_query(int idx) {
     int sum = 0;
     for (; idx > 0; idx -= idx & -idx) {
         sum += bit[idx];
@@ -17,11 +68,9 @@ inline int bit_query(int *bit, int idx) {
 }
 
 // Binary lifting on Fenwick tree to find the k-th empty slot
-// Returns 1-indexed position
-inline int bit_find_kth(const int *bit, int n, int k) {
+static inline int bit_find_kth(int n, int k) {
     int idx = 0;
     int sum = 0;
-    // 1 << 17 is 131072, which is the smallest power of 2 >= 100000
     for (int step = 131072; step > 0; step >>= 1) {
         if (idx + step <= n && sum + bit[idx + step] < k) {
             idx += step;
@@ -37,68 +86,41 @@ int main(void) {
 
     int n;
     long long k;
-    if (fscanf(fin, "%d %lld", &n, &k) != 2) {
+    if (!read_int(fin, &n) || !read_long(fin, &k)) {
         fclose(fin);
         return 0;
     }
 
-    // Allocate arrays dynamically to minimize RSS
-    int *pos = (int *)malloc((n + 1) * sizeof(int));
-    int *x = (int *)malloc((n + 1) * sizeof(int));
-    int *bit = (int *)calloc(n + 1, sizeof(int));
-
-    if (!pos || !x || !bit) {
-        fclose(fin);
-        return 0;
-    }
-
-    // Read permutation P and record positions
-    // P elements are 1-indexed, positions are 0-indexed
-    for (int i = 0; i < n; ++i) {
+    // Step 1: Compute the insertion positions x_i on the fly
+    for (int j = 0; j < n; ++j) {
         int val;
-        if (fscanf(fin, "%d", &val) == 1) {
-            pos[val] = i;
-        }
+        read_int(fin, &val);
+        x[val] = bit_query(val - 1);
+        bit_update(n, val, 1);
     }
     fclose(fin);
 
-    // Step 1: Compute the insertion positions x_i
-    // We process i from n down to 1.
-    // x_i = pos[i] - query(pos[i]) (since pos is 0-indexed, and query counts elements already placed to the left)
-    // Note: Fenwick tree expects 1-indexed, so we query at pos[i] (which is equivalent to 1-indexed prefix sum up to pos[i])
-    for (int i = n; i >= 1; --i) {
-        int p = pos[i];
-        int placed_left = bit_query(bit, p);
-        x[i] = p - placed_left;
-        bit_update(bit, n, p + 1, 1);
-    }
-
     // Step 2: Add K to the mixed-radix number x
-    // x[i] is in base i. Least significant is x[n], most significant is x[2] (x[1] is always 0)
     long long carry = k;
     for (int i = n; i >= 2 && carry > 0; --i) {
         long long val = x[i] + carry;
         x[i] = (int)(val % i);
         carry = val / i;
     }
-    x[1] = 0; // x[1] is always 0
+    x[1] = 0;
 
     // Step 3: Reconstruct Q
     // Re-initialize Fenwick tree for Q reconstruction: each element is 1 (empty slot)
-    // We can do this in O(n)
     for (int i = 1; i <= n; ++i) {
         bit[i] = i & -i;
     }
 
-    // Reuse pos array to store Q to save memory!
-    int *Q = pos;
-
     // Place i from n down to 1 into the (x[i])-th empty slot
     for (int i = n; i >= 1; --i) {
-        int target_slot = x[i] + 1; // 1-indexed empty slot count
-        int p = bit_find_kth(bit, n, target_slot);
+        int target_slot = x[i] + 1;
+        int p = bit_find_kth(n, target_slot);
         Q[p - 1] = i;
-        bit_update(bit, n, p, -1);
+        bit_update(n, p, -1);
     }
 
     // Write to arbperm.out
@@ -109,10 +131,6 @@ int main(void) {
         }
         fclose(fout);
     }
-
-    free(pos);
-    free(x);
-    free(bit);
 
     return 0;
 }

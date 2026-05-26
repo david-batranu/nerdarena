@@ -2,7 +2,7 @@
 
 - **Telemetry:**
   - Version: V1
-  - Execution Time: N/A
-  - Memory: N/A
+  - Execution Time: 51 ms
+  - Memory: 1724 KB
 - **Algorithmic Blockers:**
   - None
