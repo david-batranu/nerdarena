@@ -1,8 +1,8 @@
 # AGENTS.md
 
 ## Scope & Target Architecture
-- **Environment:** Automated remote evaluation sandbox for competitive programming benchmarks.
-- **Compilation Pipeline:** Strict static 64-bit compilation rules using explicit flags: `gcc -m64 -Wall -O2 -static -std=c11 %src% -o %bin% -lm`. Code must leverage target-specific conditional preprocessing macros where applicable.
+- **Environment:** Automated remote evaluation sandbox for competitive programming benchmarks. Native C11 standard support.
+- **Compilation Pipeline:** Strict static 64-bit compilation rules using explicit flags: `gcc -m64 -DINFOARENA -Wall -O2 -static -std=c11 %src% -o %bin% -lm`. Code must leverage target-specific conditional preprocessing macros where applicable.
 - **Hardware Profile:** Low-power, high-latency 64-bit multi-core architecture. 
   - **Supported Extensions:** Hardware-accelerated bit-counting logic, native SSE4.1, and SSE4.2 instructions are fully functional.
   - **Unsupported Deficiencies:** Completely lacks advanced vector registers (No AVX, AVX2, or AVX-512) and lacks parallel bit manipulation extensions (No BMI1 or BMI2).
@@ -12,53 +12,56 @@
 
 ## Automated Scraping & Setup
 - **Automation Skill:** Maintain and execute an external, parametric script toolkit stored exclusively in the root directory inside `.skills/` (e.g., `.skills/fetch_task.py`). You are strictly forbidden from searching or placing skills outside this designated folder. Use this script to parse remote problem specs, extracting execution limits and DOM text blocks to save directly into a structured local `./PROBLEM_ID/PROBLEM.md` file.
-- **Initial Checkpoint:** Generate the local specification markdown and initialize an empty `JOURNAL.md` tracking schema before drafting code or compiling local test binaries.
+- **Initial Checkpoint:** Generate the local specification markdown and initialize empty `JOURNAL.md` and `SCORES.md` tracking schemas before drafting code or compiling local test binaries.
 
-## Workspace Hygiene & Silence Rules (Token-Conservation)
+## Workspace Hygiene, Artifact Cleanup & Git Constraints
 - **Silent Tooling:** Run all compiler, test, and shell commands with strict silence flags to suppress verbose tracking warnings and environmental status notices. 
 - **Absolute Redirection:** NEVER execute local binaries without redirecting standard output channels to isolated logs or null streams (`> /dev/null` or `> tmp.out`). Never print raw execution buffers into the active terminal context.
+- **Transient Cleanliness:** Any temporary evaluation files created during validation runs (e.g., `tmp.out`, `expected_tmp`, `diff_trace.txt`) must be forcefully deleted (`rm -f`) immediately after the asset verification is complete. No transient file may survive a tool execution cycle.
 - **Truncated Verification:** Evaluate local validation runs using binary pass/fail flags (`diff -q`) or strictly capped heads (`diff file1 file2 | head -n 20`). 
-- **Git Ledger Precision:** Commit changes sequentially per iteration loop. Commit messages MUST be single-line imperative strings (maximum 50 characters). Never run unpaginated logs or verbose repository health checks.
+- **Atomic Git Ledger Rule:** You are strictly forbidden from committing incremental code steps, debugging trials, or partial modifications. Commit **EXCLUSIVELY ONCE** per unique implementation milestone (e.g., transitioning from a local sandbox success to a formal remote evaluator submission attempt). 
+- **Staging Isolation:** Before executing a commit, you must run an explicit status check. Never run a blanket `git add .` or stage untracked scratchpads. Only stage the target source (`.c`), `JOURNAL.md`, and `SCORES.md`. Commit messages MUST be single-line imperative strings (maximum 50 characters).
 - **Dataset Generation:** Outsource heavy synthetic data generation to automated parsing tools. Never open, print, or stream massive raw input datasets directly into the console prompt history.
 
 ## Algorithmic Circuit Breaker
 - **Trigger:** If an implementation logic path fails the remote evaluator or local validation tests 3 consecutive times, freeze code modifications.
 - **Action:** Perform a clean complexity assessment. Log the exact Big-O Time/Space complexity profile and identify the structural mathematical bottleneck directly inside `JOURNAL.md`. Do not dump this analytical text into the primary chat stream.
 
-## Performance Engineering (High-Latency Execution Guardrails)
-- **Zero Float Tax:** Completely reject standard math runtime libraries (`pow`, `sqrt`, `log`). Extract mathematical roots ($\lfloor\sqrt[p]{X}\rfloor$) across large 64-bit spaces using deterministic, integer-only routines such as bitwise digit-by-digit binary masking construction.
-- **Micro-Architecture Penalties:** The evaluation processor suffers severe pipeline stalls on 64-bit integer divisions and branch mispredictions inside tight loops.
+## Performance Engineering & Micro-Architecture Guardrails
+- **Zero Float Tax:** Reject standard math libraries (`pow`, `sqrt`, `log`). Extract roots ($\lfloor\sqrt[p]{X}\rfloor$) up to $2^{64}-1$ via bitwise digit-by-digit binary masking construction.
+- **Micro-Architecture Penalties:** Target architecture suffers high instruction latencies on 64-bit integer division/modulos and branch mispredictions inside tight loops.
   - **Hard Rule:** Ban 64-bit integer divisions (`/`) and modulos (`%`) inside hot execution paths. Substitute with bit shifts, pre-calculated reciprocals, or multiplication bounds.
-  - Eliminate unpredictable conditional tracking jumps by replacing standard `if-else` loops with branchless bitwise masking calculations.
-- **Hardware Pruning:** Use assembly-mapped compiler intrinsics like `__builtin_popcountll` and `__builtin_clzll` for single-cycle operations. Do not attempt vectorization loops, as the underlying silicon lacks the hardware processing units.
-- **Memory Profiling:** Zero dynamic allocations (`malloc`). Keep processing stacks bounded strictly below $O(\log N)$. Stream incoming source files through an inlined 4KB chunk-buffered `fread` parser using manual accumulation integer logic to maximize cache line locality within shared L3 block boundaries.
-- **Data Structure Optimization & Hardware Alignment:**
-  - **Iterative Bottom-Up Paradigm**: Reject recursive structures for trees and range query engines (e.g., Segment Trees, Fenwick Trees). Default to zero-recursion, zero-stack-frame iterative implementations padded to the nearest power of 2.
-  - **Hardware-Level Bit-Manipulation**: Leverage architecture-specific intrinsics (like `__builtin_clz`, `__builtin_ctz`, and `__builtin_popcount`) to dynamically calculate tree node properties (such as dynamic segment lengths or heights) in $O(1)$ CPU cycles instead of maintaining helper structural properties in memory or relying on call stack recursion parameters.
-  - **Memory Compression & Layout**: Maintain strict cache-line alignment. Pack tree nodes using bitfields or structure truncation to keep their size below 16 bytes, and bound memory arrays exactly to the minimum leaf power of 2 to guarantee the entire structure resides in L1/L2/L3 cache blocks.
+  - Eliminate unpredictable conditional tracking jumps by replacing standard `if-else` blocks with branchless bitwise masking calculations.
+- **Native Acceleration Upgrades:** Use assembly-mapped compiler intrinsics like `__builtin_popcountll` and `__builtin_clzll` for single-cycle operations. Do not attempt AVX/AVX2 vectorization, as the hardware units are missing.
+- **Memory Profiling Base Strategy:** By default, prefer zero-allocation static global pools and keep execution stacks under $O(\log N)$. Stream incoming files through an inlined 4KB chunk-buffered `fread` parser using manual accumulation integer logic to maximize cache line locality within shared 4MB L3 boundaries.
+
+## Leaderboard Optimization Strategies (Time-Space Balancing)
+> [!NOTE]
+> Apply these strategies analytically depending on whether the problem's explicit limits prioritize minimal memory footprint or maximum execution speed.
+
+- **Resident Memory Optimization (The Malloc Exception):**
+  - *Action:* If memory limits are ultra-tight (< 512KB) and input sizes ($N, Q$) vary wildly per test, override the static pool default. Use dynamic `malloc`/`calloc` sized exactly to the input parameters to minimize Resident Set Size (RSS).
+  - *Trade-Off:* If memory limits are lax and execution time limits are tight ($< 0.15$s), stick to static global buffers to eliminate allocation overhead.
+- **Iterative Data Structures:** Avoid recursive structures for trees and range query engines. Default to zero-recursion, iterative Segment Trees padded to the nearest power of 2 using bitwise loop shifts (`l >>= 1, r >>= 1`) and zero branching. Use C11 anonymous structures to keep node sizing strictly under 16 bytes.
+- **Array Elision via Leaf-Direct Writes:** Bypass temporary intermediate arrays (such as the DFS Euler Tour array). Directly write traversal steps straight into the leaf segment of the Segment Tree layout (knowing `n_tree = 2N - 1` beforehand), eliminating auxiliary buffer allocations in memory.
+- **Hybrid Micro-Sorting:** Avoid standard library `qsort` for tiny partitions. For array subsets where $k \le 3$, use manual inlined branchless comparisons. For $k \le 32$, use an inlined Insertion Sort to eliminate function-call stack frames. Use `qsort` only as a fallback for $k > 32$.
+- **Direct Memory I/O Buffering (Pragmatic Execution Rule):**
+  - *Standard Baseline:* Default to standard native C library functions (`fscanf`, `scanf`) for your initial implementations. Keep code structural complexity low and focus entirely on the core algorithm.
+  - *The Input-Bound Exception:* Switch to a custom chunk-buffered parsing routine (a 128 KB `fread` system using manual character-by-character integer accumulation) **ONLY IF** the problem is explicitly identified as input-bound. This applies when input data files span multiple megabytes while the core algorithmic complexity is highly lightweight ($O(N)$ or $O(N \log N)$), or if local validation tools confirm a TLE due to I/O bottlenecks. Do not waste token overhead or introduce parsing complexity if the algorithmic processing dominates the execution profile.
+- **Recursion Stack-Frame Elimination:** Deep recursive tree algorithms (DFS) allocate a stack frame for every node ($\approx 48$ bytes). At $N \ge 200,000$, this wastes $\approx 9.6$ MB of resident memory. Eliminate this completely by running an iterative BFS queue to establish topological order, then traverse in reverse topological order (bottom-up) for property aggregation. Free all temporary BFS index structures *before* answering queries.
 
 ## Journaling & Operational Skills
 - **Journal Format:** Keep `JOURNAL.md` below 15 lines per iteration. Use bulleted telemetry metrics only: (1) Structural modification details, (2) Evaluator outcome metrics, (3) Algorithmic blockers. No raw code clips or stream dumps.
-- **Toolkit Matrix & Discovery:** Delegate all environment profiling, testing, scraping, and tracking tasks to external parametric automation tools located inside the root `.skills/` directory. 
-- **Automatic Skill Discovery:** Before writing a new automation script, you must run a silent directory listing of the `.skills/` folder to discover existing tools. Do not maintain a written `skills.md` file; rely strictly on clean script naming conventions (e.g., `.skills/fetch_task.py`, `.skills/stress_test.py`) and standard inline python docstrings for self-documentation. Keep tool response streams highly sparse and actionable to safeguard active token boundaries.
+- **Grader Score Logging:** Upon every remote evaluation submission, you must parse the resulting evaluation table and update the local `SCORES.md` file. 
+- **SCORES.md Format:** You must maintain a single, dense Markdown table matching the exact structure below. Track only the global peak metrics per submission version (`V1`, `V2`, etc.) to conserve token context. Do not log individual row-by-row test case diagnostics here.
+```markdown
+# Evaluator Scoring History
 
-## Leaderboard Gold-Standard Guidelines (Double-Crown Optimization)
-> [!NOTE]
-> These are not absolute rigid rules, but rather high-level **Time-Space Trade-Off strategies** to be applied analytically depending on whether the problem's bottlenecks favor execution time or memory footprint.
-
-- **Dynamic Heap Memory Allocations (Resident Memory Optimization)**: 
-  - *Strategy:* To minimize Resident Set Size (RSS) and secure the top memory rank, avoid massive compile-time static/BSS global arrays (e.g. `int arr[MAXN]`). Instead, use dynamic allocations (`malloc`/`calloc`) matching the actual input parameters ($N, Q$).
-  - *Trade-Off:* Only apply when aiming to optimize peak memory footprint. For extremely tight execution-time limits with lax memory bounds, static BSS arrays remain superior by completely avoiding dynamic allocation overhead and pointer initialization.
-- **Iterative Segment Trees vs. Sparse Tables**: 
-  - *Strategy:* While Sparse Tables provide $O(1)$ RMQ, their $O(N \log N)$ space complexity incurs heavy memory overhead ($\approx 30+$ MB). An **Iterative Segment Tree** over the DFS Euler Tour requires only $O(N)$ memory ($\approx 3$ MB) and queries in $O(\log \text{range})$ using blazing-fast iterative bitwise loop shifts (`l >>= 1, r >>= 1`) and zero branching.
-  - *Trade-Off:* Use Iterative Segment Trees to dramatically optimize memory. However, if the time limit is extremely tight (e.g. $< 0.15$s) and query count $Q$ is massive, the $O(1)$ query time of a Sparse Table is superior despite the memory penalty.
-- **Array Elision via Leaf-Direct Writes**: 
-  - *Strategy:* Bypass temporary intermediate arrays (such as the DFS Euler Tour array). Directly write traversal steps straight into the leaf segment of the Segment Tree layout (knowing `n_tree = 2N - 1` beforehand), eliminating auxiliary buffer allocations in memory.
-- **Hybrid Micro-Sorting**: 
-  - *Strategy:* Bypassing standard `qsort` is crucial for performance when the average query size $k$ is small. For small array subsets (e.g. $k \le 3$), use manual inlined branchless comparisons. For $k \le 32$, use inlined Insertion Sort to avoid function call stack frames. Use `qsort` ONLY as an $O(k \log k)$ safety fallback for $k > 32$.
-- **Direct Memory I/O Buffering**: 
-  - *Strategy:* Downsize standard I/O streams to a highly optimal $128$ KB `fread`/`fwrite` chunk system. A $128$ KB buffer retains maximum hardware page-caching throughput while saving $1.8$ MB of RAM compared to 1MB buffers.
-- **Recursion Stack-Frame Elimination (The Silent Memory Bloat)**:
-  - *Strategy:* Deep recursive algorithms on trees (e.g. DFS) allocate a stack frame for every node (typically $\approx 48$ bytes). At $N \ge 200,000$, this translates to a massive, resident $\approx 9.6$ MB of memory overhead. Eliminate this completely by running an iterative BFS queue to get topological order, then traversing in reverse topological order (bottom-up) for sizes/properties. For tree decompositions, use tail-call loop optimization to bound recursion stack depth to strictly $O(\log N)$ or $O(1)$. Free all temporary BFS arrays *before* running queries to minimize the active footprint!
+| Ver | Max Time | Max Memory | Score | Status / Key Bottleneck |
+| :--- | :--- | :--- | :--- | :--- |
+| V1 | 163 ms | 9520 KB | 100/100 | AC: Clean Pass. Branchless bitmasking |
+| V2 | TLE | 10992 KB | 68/100 | TLE on Test 18: L3 Cache eviction past 4MB |
 
 ### Dynamic Constraints
+- **Session Overrides:** At the start of a problem-solving cycle, you are permitted to append a temporary `[ACTIVE_CONSTRAINT]` block directly below this line specifying the current problem's strict bounds (e.g., Target Time, Memory Limits, or Custom Data Types). 
+- **Precedence:** Any rule explicitly declared inside the active problem's `PROBLEM.md` or under this dynamic section instantly overrides the global defaults listed in this document for the duration of the current session. Wipe or reset these session overrides when switching to a new directory.
