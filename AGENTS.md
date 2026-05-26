@@ -52,7 +52,7 @@
 - **Recursion Stack-Frame Elimination:** Deep recursive tree algorithms (DFS) allocate a stack frame for every node ($\approx 48$ bytes). At $N \ge 200,000$, this wastes $\approx 9.6$ MB of resident memory. Eliminate this completely by running an iterative BFS queue to establish topological order, then traverse in reverse topological order (bottom-up) for property aggregation. Free all temporary BFS index structures *before* answering queries.
 
 ## Strict Reasoning & Mental Execution Topology (Verbosity Pruning)
-- **Zero-Banter Logic Stream:** Your internal reasoning or thinking block must operate as a sparse, high-density analytical stream. Completely eliminate conversational self-talk, meta-commentary, friendly transitions, or generic narrative descriptions of your progress.
+- **Zero-Banter Logic Stream:** Your internal reasoning block must be exceptionally sparse, capping at a maximum of 3-5 high-density analytical bullet points per execution turn. Completely eliminate conversational self-talk, meta-commentary, or generic narrative descriptions of your progress.
 - **Mental Compilation Constraints:** Treat your active context space like an optimized compiler pass. Reason strictly via:
   - Concise mathematical invariants or constraints.
   - Big-O asymptotic profiles of potential code loops.
