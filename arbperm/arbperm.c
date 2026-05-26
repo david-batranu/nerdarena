@@ -10,9 +10,6 @@
 uint16_t *x_low;
 uint32_t *x_high;
 
-uint16_t *Q_low;
-uint32_t *Q_high;
-
 uint16_t *bit;
 int bit_65536;
 
@@ -28,21 +25,6 @@ static inline void set_x(int idx, int val) {
 static inline int get_x(int idx) {
     int low = x_low[idx];
     int high = (x_high[idx >> 5] >> (idx & 31)) & 1;
-    return low | (high << 16);
-}
-
-static inline void set_Q(int idx, int val) {
-    Q_low[idx] = val & 0xFFFF;
-    if (val & 0x10000) {
-        Q_high[idx >> 5] |= (1U << (idx & 31));
-    } else {
-        Q_high[idx >> 5] &= ~(1U << (idx & 31));
-    }
-}
-
-static inline int get_Q(int idx) {
-    int low = Q_low[idx];
-    int high = (Q_high[idx >> 5] >> (idx & 31)) & 1;
     return low | (high << 16);
 }
 
@@ -141,8 +123,6 @@ int main(void) {
 
     x_low = malloc((n + 1) * sizeof(uint16_t));
     x_high = calloc((n + 32) / 32, sizeof(uint32_t));
-    Q_low = malloc((n + 1) * sizeof(uint16_t));
-    Q_high = calloc((n + 32) / 32, sizeof(uint32_t));
     bit = calloc(n + 1, sizeof(uint16_t));
     bit_65536 = 0;
 
@@ -164,7 +144,7 @@ int main(void) {
     }
     set_x(1, 0);
 
-    // Step 3: Reconstruct Q
+    // Step 3: Reconstruct Q in-place in x array to save memory
     // Re-initialize Fenwick tree for Q reconstruction: each element is 1 (empty slot)
     for (int i = 1; i <= n; ++i) {
         if (i == 65536) {
@@ -176,25 +156,40 @@ int main(void) {
 
     // Place i from n down to 1 into the (x[i])-th empty slot
     for (int i = n; i >= 1; --i) {
-        int target_slot = get_x(i) + 1;
+        // Follow the chain if the value was moved to a larger index
+        int curr = i;
+        while (get_x(curr) > curr) {
+            curr = get_x(curr);
+        }
+        int original_x_i = get_x(curr);
+
+        int target_slot = original_x_i + 1;
         int p = bit_find_kth(n, target_slot);
-        set_Q(p - 1, i);
+        int dest_idx = p - 1; // 0-based
+
+        if (dest_idx < i) {
+            // Move the alive value at 1-based index (dest_idx + 1) to index i (which is now dead)
+            set_x(i, get_x(dest_idx + 1));
+            // Write the final value i to 1-based index (dest_idx + 1)
+            set_x(dest_idx + 1, i);
+        } else {
+            // Write the final value i to 1-based index (dest_idx + 1)
+            set_x(dest_idx + 1, i);
+        }
         bit_update(n, p, -1);
     }
 
-    // Write to arbperm.out
+    // Write to arbperm.out (the output is in positions 1 to n of x)
     FILE *fout = fopen("arbperm.out", "w");
     if (fout) {
-        for (int i = 0; i < n; ++i) {
-            fprintf(fout, "%d%c", get_Q(i), (i == n - 1) ? '\n' : ' ');
+        for (int i = 1; i <= n; ++i) {
+            fprintf(fout, "%d%c", get_x(i), (i == n) ? '\n' : ' ');
         }
         fclose(fout);
     }
 
     free(x_low);
     free(x_high);
-    free(Q_low);
-    free(Q_high);
     free(bit);
 
     return 0;
